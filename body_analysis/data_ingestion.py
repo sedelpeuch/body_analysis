@@ -23,7 +23,11 @@ class DataPaths:
 
 
 def find_data_files(data_dir: Optional[str] = None) -> DataPaths:
-    """Locate Samsung Health export CSVs in the given data directory."""
+    """Locate Samsung Health export CSVs in the given data directory.
+    
+    If multiple files match, returns the most recent one based on the date
+    in the filename (format: com.samsung.health.*.YYYYMMDD.csv).
+    """
     data_dir = data_dir or DATA_DIR_DEFAULT
     weight_matches = glob.glob(
         os.path.join(data_dir, "com.samsung.health.weight.*.csv")
@@ -31,9 +35,17 @@ def find_data_files(data_dir: Optional[str] = None) -> DataPaths:
     food_matches = glob.glob(
         os.path.join(data_dir, "com.samsung.health.food_intake.*.csv")
     )
+    
+    def get_latest_file(matches: list) -> Optional[str]:
+        """Return the most recent file based on date in filename."""
+        if not matches:
+            return None
+        # Sort by filename (dates in YYYYMMDD format sort correctly alphabetically)
+        return sorted(matches)[-1]
+    
     return DataPaths(
-        weight_csv=weight_matches[0] if weight_matches else None,
-        food_csv=food_matches[0] if food_matches else None,
+        weight_csv=get_latest_file(weight_matches),
+        food_csv=get_latest_file(food_matches),
     )
 
 
