@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import base64
 from io import BytesIO
+from datetime import datetime
 import streamlit as st
 
 from body_analysis.photos import list_photos_by_tag, load_image
@@ -85,9 +86,27 @@ if st.session_state.selected_tag:
                     img_base64 = base64.b64encode(buffered.getvalue()).decode()
 
                     with cols[col_idx]:
-                        st.markdown(f"**{month}**")
+                        # Convertir YYYY-MM en "Mois Année"
+                        date_obj = datetime.strptime(month, "%Y-%m")
+                        month_names = {
+                            1: "Janvier",
+                            2: "Février",
+                            3: "Mars",
+                            4: "Avril",
+                            5: "Mai",
+                            6: "Juin",
+                            7: "Juillet",
+                            8: "Août",
+                            9: "Septembre",
+                            10: "Octobre",
+                            11: "Novembre",
+                            12: "Décembre",
+                        }
+                        month_display = f"{month_names[date_obj.month]} {date_obj.year}"
+
                         st.markdown(
                             f"""
+                            <p style="text-align: center; font-weight: bold; margin-bottom: 10px;">{month_display}</p>
                             <div style="
                                 width: 100%;
                                 height: 600px;
