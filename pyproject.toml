@@ -1,0 +1,24 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "python_body-analysis"
+version = "0.1.0"
+description = "Script for body measurement analysis and following"
+authors = ["Sébastien Delpeuch <sebastien@delpeuch.net>"]
+readme = "README.md"
+packages = [{ include = "body_analysis" }]
+
+[tool.poetry.scripts]
+body_analysis = "body_analysis.main:main"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pre-commit = "^4.5.0"
+click = "^8.3.1"
+pytest = "^9.0.1"
+streamlit = "^1.38.0"
+pandas = "^2.2.3"
+altair = "^5.3.0"
+pillow = "^11.0.0"
