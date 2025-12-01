@@ -2,19 +2,13 @@
     {
         "name": "Phase libre",
         "type": "free",
-        "start": "2020-01-01",
+        "start": "2023-01-01",
         "end": "2023-12-31"
     },
     {
-        "name": "Régime débutant",
+        "name": "Première sèche",
         "type": "cut",
         "start": "2024-01-01",
-        "end": "2024-11-19"
-    },
-    {
-        "name": "Première sèche mesurée",
-        "type": "cut",
-        "start": "2024-11-20",
         "end": "2025-03-31"
     },
     {

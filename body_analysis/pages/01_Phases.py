@@ -89,10 +89,14 @@ st.markdown("#### ⚖️ Poids")
 col1, col2, col3 = st.columns(3)
 with col1:
     weight_delta = summary.get("weight_delta")
+    weight_start = summary.get("weight_start")
+    weight_end = summary.get("weight_end")
     st.metric(
         "Variation totale",
         f"{weight_delta:.2f} kg" if weight_delta is not None else "N/A",
     )
+    if weight_start is not None and weight_end is not None:
+        st.markdown(f"<span style='font-size:0.95em; color:#888;'>Départ : {weight_start:.1f} kg &nbsp;&nbsp;→&nbsp;&nbsp; Arrivée : {weight_end:.1f} kg</span>", unsafe_allow_html=True)
 with col2:
     weight_monthly = summary.get("weight_monthly")
     st.metric(
@@ -110,7 +114,11 @@ st.markdown("#### 🟠 Masse grasse")
 col1, col2, col3 = st.columns(3)
 with col1:
     bf_delta = summary.get("body_fat_delta")
+    bf_start = summary.get("body_fat_start")
+    bf_end = summary.get("body_fat_end")
     st.metric("Variation totale", f"{bf_delta:.2f}%" if bf_delta is not None else "N/A")
+    if bf_start is not None and bf_end is not None:
+        st.markdown(f"<span style='font-size:0.95em; color:#888;'>Départ : {bf_start:.1f}% &nbsp;&nbsp;→&nbsp;&nbsp; Arrivée : {bf_end:.1f}%</span>", unsafe_allow_html=True)
 with col2:
     bf_monthly = summary.get("body_fat_monthly")
     st.metric(
@@ -128,10 +136,14 @@ st.markdown("#### 💪 Masse musculaire")
 col1, col2, col3 = st.columns(3)
 with col1:
     muscle_delta = summary.get("skeletal_muscle_delta")
+    muscle_start = summary.get("skeletal_muscle_start")
+    muscle_end = summary.get("skeletal_muscle_end")
     st.metric(
         "Variation totale",
         f"{muscle_delta:.2f} kg" if muscle_delta is not None else "N/A",
     )
+    if muscle_start is not None and muscle_end is not None:
+        st.markdown(f"<span style='font-size:0.95em; color:#888;'>Départ : {muscle_start:.1f} kg &nbsp;&nbsp;→&nbsp;&nbsp; Arrivée : {muscle_end:.1f} kg</span>", unsafe_allow_html=True)
 with col2:
     muscle_monthly = summary.get("skeletal_muscle_monthly")
     st.metric(
