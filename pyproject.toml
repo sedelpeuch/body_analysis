@@ -10,9 +10,6 @@ authors = ["Sébastien Delpeuch <sebastien@delpeuch.net>"]
 readme = "README.md"
 packages = [{ include = "body_analysis" }]
 
-[tool.poetry.scripts]
-body_analysis = "body_analysis.main:main"
-
 [tool.poetry.dependencies]
 python = "^3.11"
 pre-commit = "^4.5.0"

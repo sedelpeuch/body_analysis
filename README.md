@@ -1,47 +1,114 @@
-# python_body-analysis
+# Body Analysis App
 
-Script for body measurement analysis and following
+Application Streamlit pour le suivi et l'analyse corporelle, phases, photos et import de données Samsung Health.
 
-Additional line of information text about what the project does.
+## Fonctionnalités principales
 
-## Prerequisites
+- **Dashboard** : Vue d'ensemble, graphiques de poids, composition corporelle, calories
+- **Phases** : Analyse détaillée par phase (bulk, cut, maintien, libre), métriques mensuelles, variation, pourcentage
+- **Photos** : Timeline mensuelle par tag (face, profil, dos, bras, épaule), confidentialité, auto-rotation, affichage uniforme
+- **Import** : Upload CSV Samsung Health (poids, alimentation), upload photos, organisation automatique, phases.json
 
-Before you begin, ensure you have met the following requirements:
+## Installation locale
 
-## Installing python_body-analysis
+### Prérequis
 
-To install python_body-analysis, follow these steps:
+- Python 3.11
+- [Poetry](https://python-poetry.org/)
+
+### Installation
 
 ```bash
 poetry install
 ```
 
-## Using python_body-analysis
-
-To use python_body-analysis, follow these steps:
+### Lancement
 
 ```bash
-# CLI demo
-poetry run body_analysis
-
-# Streamlit application
-poetry run streamlit run body_analysis/dashboard.py
+streamlit run body_analysis/dashboard.py
 ```
 
-### Pages
-- Main dashboard: charts of weight/composition and daily calories with phase markers
-- Phases: select a phase to view a detailed timeline and KPIs
-- Photos: compare monthly photos with optional blur mode
+## Déploiement Docker
 
-### Data layout
-- `data/com.samsung.health.weight*.csv` — Samsung Health export for body composition
-- `data/com.samsung.health.food_intake*.csv` — Samsung Health export for food intake
-- `data/phases.json` — Phase configuration, example provided
-- `data/photos/YYYY-MM/*.jpg|png` — Monthly photo sets
+### Build et lancement local
 
-## License
+```bash
+# Build l'image
+docker-compose build
 
-This project is licensed under Apache 2.0, a permissive open source license that
-allows you to freely use, modify, distribute, and sell your own
-products that include this software. The full text of the license can be
-obtained from the [Apache website](https://www.apache.org/licenses/LICENSE-2.0).
+# Lancer le service
+docker-compose up -d
+
+# Accès : http://localhost:8501
+```
+
+### Déploiement sur Docker Swarm
+
+```bash
+# Initialiser le swarm (si besoin)
+docker swarm init
+
+# Déployer le stack
+docker stack deploy -c docker-compose.yml body-analysis
+
+# Accès : http://<swarm-manager-ip>:8501
+```
+
+### Mise à jour du service
+
+```bash
+# Rebuild l'image
+docker-compose build
+
+# Mettre à jour le service sur Swarm
+docker service update --image body-analysis:latest body-analysis_body-analysis
+```
+
+## Configuration
+
+- **Données persistantes** : Le volume `./data` contient les CSV, photos et phases.json
+- **Variables d'environnement** : `TZ` (Europe/Paris par défaut)
+- **Réseau** : Overlay pour Swarm
+- **Ressources** : Limite à 1 CPU / 1GB RAM
+- **Health check** : Vérification automatique de Streamlit
+
+## Structure des dossiers
+
+```
+body_analysis/
+├── body_analysis/
+│   ├── dashboard.py
+│   ├── pages/
+│   └── ...
+├── data/
+│   ├── com.samsung.health.weight.YYYYMMDD.csv
+│   ├── com.samsung.health.food_intake.YYYYMMDD.csv
+│   ├── phases.json
+│   └── photos/
+│       └── YYYY-MM/
+│           └── tag.jpg
+├── Dockerfile
+├── docker-compose.yml
+├── .dockerignore
+├── README.md
+```
+
+## Utilisation
+
+1. **Importer les données** : Utiliser la page Import pour uploader les CSV et photos
+2. **Configurer les phases** : Éditer `data/phases.json` pour définir les périodes
+3. **Analyser** : Naviguer entre Dashboard, Phases et Photos pour visualiser l'évolution
+
+## Dépannage
+
+- **Logs Docker Compose** : `docker-compose logs -f`
+- **Logs Swarm** : `docker service logs -f body-analysis_body-analysis`
+- **Permissions data/** : `chmod -R 755 data/`
+
+## Auteurs
+
+- Sébastien Delpeuch <sebastien@delpeuch.net>
+
+---
+
+Pour toute question ou amélioration, ouvrez une issue sur le dépôt GitHub.

@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  body-analysis:
+    image: body-analysis:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    volumes:
+      # Mount data directory for persistence
+      - ./data:/app/data
+    environment:
+      - TZ=Europe/Paris
+    restart: unless-stopped
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    networks:
+      - body-analysis-network
+
+networks:
+  body-analysis-network:
+    driver: overlay
+    attachable: true
