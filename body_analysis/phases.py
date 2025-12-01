@@ -82,30 +82,70 @@ def summarize_phase(weight_data: list, daily_cal_data: list, phase: Phase) -> di
         if len(valid) == 1:
             return 0.0, float(valid.iloc[0]), float(valid.iloc[0])
         return float(valid.iloc[-1] - valid.iloc[0]), float(valid.iloc[0]), float(valid.iloc[-1])
+    
+    def calculate_monthly_rate(series: pd.Series, days: int) -> Optional[float]:
+        """Calcule la vitesse moyenne par mois."""
+        if days == 0:
+            return None
+        delta, _, _ = delta_with_values(series)
+        if delta is None:
+            return None
+        months = days / 30.0
+        if months == 0:
+            return None
+        return delta / months
+    
+    def calculate_percentage_change(start: Optional[float], end: Optional[float]) -> Optional[float]:
+        """Calcule le changement en pourcentage."""
+        if start is None or end is None or start == 0:
+            return None
+        return ((end - start) / start) * 100
 
+    days = int((phase.end - phase.start).days) + 1
+    
     weight_delta, weight_start, weight_end = delta_with_values(w["weight"]) if "weight" in w.columns else (None, None, None)
     bf_delta, bf_start, bf_end = delta_with_values(w["body_fat"]) if "body_fat" in w.columns else (None, None, None)
     muscle_delta, muscle_start, muscle_end = delta_with_values(w["skeletal_muscle_mass"]) if "skeletal_muscle_mass" in w.columns else (None, None, None)
+
+    # Calculs de vitesse mensuelle
+    weight_monthly = calculate_monthly_rate(w["weight"], days) if "weight" in w.columns else None
+    bf_monthly = calculate_monthly_rate(w["body_fat"], days) if "body_fat" in w.columns else None
+    muscle_monthly = calculate_monthly_rate(w["skeletal_muscle_mass"], days) if "skeletal_muscle_mass" in w.columns else None
+    
+    # Calculs de changement en pourcentage
+    weight_pct = calculate_percentage_change(weight_start, weight_end)
+    bf_pct = calculate_percentage_change(bf_start, bf_end)
+    muscle_pct = calculate_percentage_change(muscle_start, muscle_end)
 
     return {
         "label": phase.label,
         "start": phase.start,
         "end": phase.end,
+        "days": days,
+        # Poids
         "weight_delta": weight_delta,
         "weight_start": weight_start,
         "weight_end": weight_end,
+        "weight_monthly": weight_monthly,
+        "weight_pct": weight_pct,
+        # Masse grasse
         "body_fat_delta": bf_delta,
         "body_fat_start": bf_start,
         "body_fat_end": bf_end,
+        "body_fat_monthly": bf_monthly,
+        "body_fat_pct": bf_pct,
+        # Masse musculaire
         "skeletal_muscle_delta": muscle_delta,
         "skeletal_muscle_start": muscle_start,
         "skeletal_muscle_end": muscle_end,
+        "skeletal_muscle_monthly": muscle_monthly,
+        "skeletal_muscle_pct": muscle_pct,
+        # Calories
         "avg_daily_calories": (
             float(c["calories"].mean())
             if len(c) > 0 and "calories" in c.columns
             else None
         ),
-        "days": int((phase.end - phase.start).days) + 1,
     }
 
 

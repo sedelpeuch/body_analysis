@@ -6,9 +6,15 @@
         "end": "2023-12-31"
     },
     {
-        "name": "Première sèche",
+        "name": "Régime débutant",
         "type": "cut",
         "start": "2024-01-01",
+        "end": "2024-11-19"
+    },
+    {
+        "name": "Première sèche mesurée",
+        "type": "cut",
+        "start": "2024-11-20",
         "end": "2025-03-31"
     },
     {
