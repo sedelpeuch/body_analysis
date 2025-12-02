@@ -13,7 +13,11 @@ st.set_page_config(page_title="Body Analysis", page_icon="📈", layout="wide")
 st.title("Body Analysis — Tableau de bord")
 
 # Load data
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+ENV = os.environ.get("ENV", "dev")
+if ENV == "production":
+    DATA_DIR = "/app/data"
+else:
+    DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 weight_data, daily_cal_data = load_all(DATA_DIR)
 
 # Convert to DataFrames for Altair

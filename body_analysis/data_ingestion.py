@@ -13,7 +13,11 @@ import calendar
 from datetime import datetime
 
 
-DATA_DIR_DEFAULT = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+ENV = os.environ.get("ENV", "dev")
+if ENV == "production":
+    DATA_DIR_DEFAULT = "/app/data"
+else:
+    DATA_DIR_DEFAULT = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 
 
 @dataclass
@@ -24,7 +28,7 @@ class DataPaths:
 
 def find_data_files(data_dir: Optional[str] = None) -> DataPaths:
     """Locate Samsung Health export CSVs in the given data directory.
-    
+
     If multiple files match, returns the most recent one based on the date
     in the filename (format: com.samsung.health.*.YYYYMMDD.csv).
     """
@@ -35,14 +39,14 @@ def find_data_files(data_dir: Optional[str] = None) -> DataPaths:
     food_matches = glob.glob(
         os.path.join(data_dir, "com.samsung.health.food_intake.*.csv")
     )
-    
+
     def get_latest_file(matches: list) -> Optional[str]:
         """Return the most recent file based on date in filename."""
         if not matches:
             return None
         # Sort by filename (dates in YYYYMMDD format sort correctly alphabetically)
         return sorted(matches)[-1]
-    
+
     return DataPaths(
         weight_csv=get_latest_file(weight_matches),
         food_csv=get_latest_file(food_matches),

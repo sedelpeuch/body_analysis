@@ -12,10 +12,13 @@ st.set_page_config(page_title="Phases", page_icon="🗓️", layout="wide")
 
 st.title("Phases — Timeline et détails")
 
-DATA_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data"
-)
-DATA_DIR = os.path.abspath(DATA_DIR)
+ENV = os.environ.get("ENV", "dev")
+if ENV == "production":
+    DATA_DIR = "/app/data"
+else:
+    DATA_DIR = os.path.abspath(os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data"
+    ))
 weight_data, daily_cal_data = load_all(DATA_DIR)
 
 # Convert to DataFrames for Altair

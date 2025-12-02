@@ -12,10 +12,13 @@ st.set_page_config(page_title="Photos", page_icon="🖼️", layout="wide")
 
 st.title("Évolution photos par tag")
 
-DATA_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data"
-)
-DATA_DIR = os.path.abspath(DATA_DIR)
+ENV = os.environ.get("ENV", "dev")
+if ENV == "production":
+    DATA_DIR = "/app/data"
+else:
+    DATA_DIR = os.path.abspath(os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data"
+    ))
 PHOTOS_DIR = os.path.join(DATA_DIR, "photos")
 
 photos_by_tag = list_photos_by_tag(PHOTOS_DIR)
