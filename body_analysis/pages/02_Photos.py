@@ -5,8 +5,10 @@ import base64
 from io import BytesIO
 from datetime import datetime
 import streamlit as st
+import pandas as pd
 
 from body_analysis.photos import list_photos_by_tag, load_image
+from body_analysis.data_ingestion import load_all
 
 st.set_page_config(page_title="Photos", page_icon="🖼️", layout="wide")
 
@@ -20,6 +22,10 @@ else:
         os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data"
     ))
 PHOTOS_DIR = os.path.join(DATA_DIR, "photos")
+
+# Charger les données de mesures
+weight_data, _ = load_all(DATA_DIR)
+weight_df = pd.DataFrame(weight_data)
 
 photos_by_tag = list_photos_by_tag(PHOTOS_DIR)
 
@@ -71,8 +77,16 @@ if st.session_state.selected_tag:
     if not months:
         st.info(f"Aucune photo pour le tag '{tag}'")
     else:
-        # Afficher en grille avec des conteneurs de taille fixe
-        num_cols = 4
+        # Affichage adapté au format 3:4 (portrait)
+        num_cols = 5
+        img_height = 480  # 3:4 ratio, largeur auto
+
+        def first_sunday(year, month):
+            """Trouve le premier dimanche du mois donné."""
+            d = datetime(year, month, 1)
+            while d.weekday() != 6:  # 6 = dimanche
+                d = d.replace(day=d.day + 1)
+            return d
 
         for idx in range(0, len(months), num_cols):
             cols = st.columns(num_cols)
@@ -107,12 +121,37 @@ if st.session_state.selected_tag:
                         }
                         month_display = f"{month_names[date_obj.month]} {date_obj.year}"
 
+                        # Calculer la date de la photo (premier dimanche du mois)
+                        photo_date = first_sunday(date_obj.year, date_obj.month)
+                        
+                        # Trouver la mesure la plus proche de cette date
+                        measures_html = ""
+                        if not weight_df.empty:
+                            weight_df_copy = weight_df.copy()
+                            weight_df_copy["date_delta"] = weight_df_copy["date"].apply(
+                                lambda d: abs((d - photo_date).days)
+                            )
+                            closest_idx = weight_df_copy["date_delta"].idxmin()
+                            closest = weight_df_copy.loc[closest_idx]
+                            
+                            # Construire le HTML des mesures
+                            measures_html = "<div style='font-size:0.75em; color:#888; text-align:center; margin-bottom:8px; display:flex; justify-content:center; gap:8px;'>"
+                            if pd.notnull(closest["weight"]):
+                                measures_html += f"<span>⚖️ {closest['weight']:.1f}kg</span>"
+                            if pd.notnull(closest["body_fat"]):
+                                measures_html += f"<span>📊 {closest['body_fat']:.1f}%</span>"
+                            if pd.notnull(closest["skeletal_muscle_mass"]):
+                                measures_html += f"<span>💪 {closest['skeletal_muscle_mass']:.1f}kg</span>"
+                            measures_html += "</div>"
+
                         st.markdown(
                             f"""
-                            <p style="text-align: center; font-weight: bold; margin-bottom: 10px;">{month_display}</p>
-                            <div style="
+                            <p style='text-align: center; font-weight: bold; margin-bottom: 4px;'>{month_display}</p>
+                            {measures_html}
+                            <div style='
                                 width: 100%;
-                                height: 600px;
+                                aspect-ratio: 3/4;
+                                height: {img_height}px;
                                 display: flex;
                                 align-items: center;
                                 justify-content: center;
@@ -120,12 +159,13 @@ if st.session_state.selected_tag:
                                 background-color: transparent;
                                 border: 1px solid #ddd;
                                 border-radius: 8px;
-                            ">
-                                <img src="data:image/jpeg;base64,{img_base64}" style="
-                                    max-width: 100%;
-                                    max-height: 100%;
-                                    object-fit: contain;
-                                ">
+                            '>
+                                <img src='data:image/jpeg;base64,{img_base64}' style='
+                                    width: auto;
+                                    height: 100%;
+                                    object-fit: cover;
+                                    border-radius: 4px;
+                                '>
                             </div>
                             """,
                             unsafe_allow_html=True,

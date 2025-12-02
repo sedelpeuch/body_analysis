@@ -70,7 +70,7 @@ def load_image(image_path: str, blur: bool = False, target_height: int | None = 
         img = img.resize((new_width, target_height), Image.Resampling.LANCZOS)
     
     if blur:
-        img = img.filter(ImageFilter.GaussianBlur(radius=500))
+        img = img.filter(ImageFilter.GaussianBlur(radius=80))
     return img
 
 
