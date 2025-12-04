@@ -330,15 +330,40 @@ filtered_weight_df = filter_year(weight_df, "date", selected)
 if filtered_weight_df.empty or "weight" not in filtered_weight_df.columns:
     st.info("Aucune donnée de poids disponible.")
 else:
-    base = alt.Chart(filtered_weight_df).encode(
+    w_clean = filtered_weight_df.dropna(subset=["weight"])
+    base = alt.Chart(w_clean).encode(
         x=alt.X("date:T", axis=alt.Axis(format="%m/%y", title="Mois/Année"))
     )
-    y_min = filtered_weight_df["weight"].min()
-    y_max = filtered_weight_df["weight"].max()
-    line = base.mark_line(color="#1f77b4").encode(
-        y=alt.Y("weight:Q", title="Poids (kg)", scale=alt.Scale(domain=[y_min, y_max]))
+    y_min = w_clean["weight"].min()
+    y_max = w_clean["weight"].max()
+    line = base.mark_line(color="#2ca02c", size=2).encode(
+        y=alt.Y("weight:Q", title="Poids (kg)", scale=alt.Scale(domain=[y_min, y_max])),
+        tooltip=[
+            alt.Tooltip("date:T", title="Date", format="%d/%m/%Y"),
+            alt.Tooltip("weight:Q", title="Poids (kg)", format=".2f"),
+        ],
     )
+    
+    # Lignes de tendance par phase
+    trend_layers = []
+    if filtered_phases:
+        for p in filtered_phases:
+            phase_data = w_clean[(w_clean["date"] >= p.start) & (w_clean["date"] <= p.end)]
+            if not phase_data.empty and len(phase_data) > 1:
+                trend = (
+                    alt.Chart(phase_data)
+                    .mark_line(color="#90EE90", strokeDash=[5, 5], size=3)
+                    .transform_regression("date", "weight", method="linear")
+                    .encode(
+                        x="date:T",
+                        y="weight:Q",
+                    )
+                )
+                trend_layers.append(trend)
+    
     chart = line
+    for trend in trend_layers:
+        chart = chart + trend
     if phase_rects is not None:
         chart = phase_rects + chart
     st.altair_chart(chart.properties(height=400), use_container_width=True)
@@ -375,44 +400,94 @@ if filtered_phases2:
         )
     )
 
-st.subheader("Masse grasse et musculaire")
+# Masse grasse
+st.subheader("Masse grasse")
 filtered_metrics_df = filter_year(weight_df, "date", selected)
-if not filtered_metrics_df.empty:
-    metrics_cols = [
-        c
-        for c in ["body_fat", "skeletal_muscle_mass"]
-        if c in filtered_metrics_df.columns
-    ]
-    if metrics_cols:
-        melt = filtered_metrics_df.melt(
-            id_vars=["date"],
-            value_vars=metrics_cols,
-            var_name="metric",
-            value_name="value",
-        )
-        melt = melt.dropna(subset=["value"])
-        y_min = melt["value"].min()
-        y_max = melt["value"].max()
-        chart2 = (
-            alt.Chart(melt)
-            .mark_line()
+if not filtered_metrics_df.empty and "body_fat" in filtered_metrics_df.columns:
+    bf_clean = filtered_metrics_df.dropna(subset=["body_fat"])
+    if not bf_clean.empty:
+        y_min = bf_clean["body_fat"].min()
+        y_max = bf_clean["body_fat"].max()
+        line_bf = (
+            alt.Chart(bf_clean)
+            .mark_line(color="#FF8C00", size=2)
             .encode(
                 x=alt.X("date:T", axis=alt.Axis(format="%m/%y", title="Mois/Année")),
-                y=alt.Y("value:Q", scale=alt.Scale(domain=[y_min, y_max])),
-                color=alt.Color(
-                    "metric:N",
-                    legend=alt.Legend(orient="bottom"),
-                    scale=alt.Scale(
-                        domain=["body_fat", "skeletal_muscle_mass"],
-                        range=["#FF8C00", "#4ECDC4"],
-                    ),
-                ),
+                y=alt.Y("body_fat:Q", title="Masse grasse (%)", scale=alt.Scale(domain=[y_min, y_max])),
+                tooltip=[
+                    alt.Tooltip("date:T", title="Date", format="%d/%m/%Y"),
+                    alt.Tooltip("body_fat:Q", title="Masse grasse (%)", format=".2f"),
+                ],
             )
-            .properties(height=400)
         )
+        
+        # Lignes de tendance par phase
+        trend_layers_bf = []
+        if filtered_phases2:
+            for p in filtered_phases2:
+                phase_data = bf_clean[(bf_clean["date"] >= p.start) & (bf_clean["date"] <= p.end)]
+                if not phase_data.empty and len(phase_data) > 1:
+                    trend = (
+                        alt.Chart(phase_data)
+                        .mark_line(color="#FFD580", strokeDash=[5, 5], size=3)
+                        .transform_regression("date", "body_fat", method="linear")
+                        .encode(
+                            x="date:T",
+                            y="body_fat:Q",
+                        )
+                    )
+                    trend_layers_bf.append(trend)
+        
+        chart_bf = line_bf
+        for trend in trend_layers_bf:
+            chart_bf = chart_bf + trend
         if phase_rects2 is not None:
-            chart2 = phase_rects2 + chart2
-        st.altair_chart(chart2, use_container_width=True)
+            chart_bf = phase_rects2 + chart_bf
+        st.altair_chart(chart_bf.properties(height=400), use_container_width=True)
+
+# Masse musculaire
+st.subheader("Masse musculaire")
+if not filtered_metrics_df.empty and "skeletal_muscle_mass" in filtered_metrics_df.columns:
+    muscle_clean = filtered_metrics_df.dropna(subset=["skeletal_muscle_mass"])
+    if not muscle_clean.empty:
+        y_min = muscle_clean["skeletal_muscle_mass"].min()
+        y_max = muscle_clean["skeletal_muscle_mass"].max()
+        line_muscle = (
+            alt.Chart(muscle_clean)
+            .mark_line(color="#1f77b4", size=2)
+            .encode(
+                x=alt.X("date:T", axis=alt.Axis(format="%m/%y", title="Mois/Année")),
+                y=alt.Y("skeletal_muscle_mass:Q", title="Masse musculaire (kg)", scale=alt.Scale(domain=[y_min, y_max])),
+                tooltip=[
+                    alt.Tooltip("date:T", title="Date", format="%d/%m/%Y"),
+                    alt.Tooltip("skeletal_muscle_mass:Q", title="Masse musculaire (kg)", format=".2f"),
+                ],
+            )
+        )
+        
+        # Lignes de tendance par phase
+        trend_layers_muscle = []
+        if filtered_phases2:
+            for p in filtered_phases2:
+                phase_data = muscle_clean[(muscle_clean["date"] >= p.start) & (muscle_clean["date"] <= p.end)]
+                if not phase_data.empty and len(phase_data) > 1:
+                    trend = (
+                        alt.Chart(phase_data)
+                        .mark_line(color="#17a2b8", strokeDash=[5, 5], size=3)
+                        .transform_regression("date", "skeletal_muscle_mass", method="linear")
+                        .encode(
+                            x="date:T",
+                            y="skeletal_muscle_mass:Q",
+                        )
+                    )
+                    trend_layers_muscle.append(trend)
+        
+        chart_muscle = line_muscle
+        for trend in trend_layers_muscle:
+            chart_muscle = chart_muscle + trend
+        if phase_rects2 is not None:
+            chart_muscle = phase_rects2 + chart_muscle
+        st.altair_chart(chart_muscle.properties(height=400), use_container_width=True)
 
 # === Graphique Apport calorique ===
 phase_rects3 = None
