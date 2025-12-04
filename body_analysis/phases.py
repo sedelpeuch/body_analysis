@@ -17,6 +17,7 @@ class Phase:
     type: str  # one of: free, bulk, cut, maintain
     start: pd.Timestamp
     end: pd.Timestamp
+    objectives: Optional[dict] = None
 
     @property
     def label(self) -> str:
@@ -48,7 +49,8 @@ def load_phases(
             end = _parse_date(item.get("end"))
             if pd.isna(start) or pd.isna(end):
                 continue
-            phases.append(Phase(name=name, type=typ, start=start, end=end))
+            objectives = item.get("objectives")
+            phases.append(Phase(name=name, type=typ, start=start, end=end, objectives=objectives))
     elif fallback_range:
         phases.append(
             Phase(
