@@ -15,6 +15,61 @@ from body_analysis.photos import list_photos_by_tag, load_image
 
 st.set_page_config(page_title="Phases", page_icon="🗓️", layout="wide")
 
+# CSS moderne
+st.markdown(
+    """
+<style>
+    .phase-selector-card {
+        background: rgba(102, 126, 234, 0.05);
+        padding: 20px;
+        border-radius: 12px;
+        border: 2px solid rgba(102, 126, 234, 0.2);
+        margin: 10px 0;
+        transition: all 0.3s ease;
+    }
+    .phase-selector-card:hover {
+        border-color: rgba(102, 126, 234, 0.5);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    }
+    .metric-card {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        text-align: center;
+        margin: 10px 0;
+        min-height: 280px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .metric-value {
+        font-size: 32px;
+        font-weight: bold;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    .metric-label {
+        font-size: 14px;
+        color: #999;
+        margin-top: 5px;
+    }
+    .sub-metric {
+        font-size: 13px;
+        color: #666;
+        margin-top: 8px;
+        padding: 5px 10px;
+        background: rgba(102, 126, 234, 0.05);
+        border-radius: 8px;
+        display: inline-block;
+    }
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
 st.title("Phases — Timeline et détails")
 
 ENV = os.environ.get("ENV", "dev")
@@ -113,57 +168,212 @@ st.markdown(f"## {phase.name} — *{duration_text}*")
 # Summary
 summary = summarize_phase(weight_data, daily_cal_data, phase)
 
-# Poids
+# Afficher les objectifs si la phase en a
+if hasattr(phase, "objectives") and phase.objectives:
+    st.markdown("**🎯 Objectifs de la phase**")
+
+    obj = phase.objectives
+    obj_col1, obj_col2, obj_col3, obj_col4 = st.columns(4)
+
+    with obj_col1:
+        st.markdown("**⚖️ Poids**")
+        weight_target = obj.get("weight_target")
+        weight_achieved = summary.get("weight_end")
+        if weight_target and weight_achieved:
+            gap = weight_achieved - weight_target
+            success = abs(gap) <= 2
+            badge_text = "✅ Atteint" if success else "⚠️ Écart"
+
+            st.markdown(
+                f"""
+            <div style="text-align: center; padding: 15px; background: rgba(44, 160, 44, 0.1); border-radius: 10px; border: 1px solid rgba(44, 160, 44, 0.3);">
+                <div style="font-size: 28px; font-weight: bold; color: #2ca02c;">{weight_achieved:.1f}</div>
+                <div style="font-size: 14px; color: #999;">Objectif: {weight_target:.1f} kg</div>
+                <div style="font-size: 16px; margin-top: 5px; color: {'#38ef7d' if success else '#ff6b6b'};">{gap:+.1f} kg</div>
+                <div style="background: {'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)' if success else 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)'}; padding: 5px 15px; border-radius: 20px; color: white; font-weight: bold; display: inline-block; margin-top: 10px;">{badge_text}</div>
+            </div>
+            """,
+                unsafe_allow_html=True,
+            )
+
+    with obj_col2:
+        st.markdown("**🔥 Grasse**")
+        bf_target = obj.get("body_fat_target")
+        bf_achieved = summary.get("body_fat_end")
+        if bf_target and bf_achieved:
+            gap = bf_achieved - bf_target
+            success = abs(gap) <= 2
+            badge_text = "✅ Atteint" if success else "⚠️ Écart"
+
+            st.markdown(
+                f"""
+            <div style="text-align: center; padding: 15px; background: rgba(255, 140, 0, 0.1); border-radius: 10px; border: 1px solid rgba(255, 140, 0, 0.3);">
+                <div style="font-size: 28px; font-weight: bold; color: #FF8C00;">{bf_achieved:.1f}</div>
+                <div style="font-size: 14px; color: #999;">Objectif: {bf_target:.1f} %</div>
+                <div style="font-size: 16px; margin-top: 5px; color: {'#38ef7d' if success else '#ff6b6b'};">{gap:+.1f} %</div>
+                <div style="background: {'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)' if success else 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)'}; padding: 5px 15px; border-radius: 20px; color: white; font-weight: bold; display: inline-block; margin-top: 10px;">{badge_text}</div>
+            </div>
+            """,
+                unsafe_allow_html=True,
+            )
+
+    with obj_col3:
+        st.markdown("**💪 Musculaire**")
+        muscle_target = obj.get("muscle_target")
+        muscle_achieved = summary.get("skeletal_muscle_end")
+        if muscle_target and muscle_achieved:
+            gap = muscle_achieved - muscle_target
+            success = abs(gap) <= 1
+            badge_text = "✅ Atteint" if success else "⚠️ Écart"
+
+            st.markdown(
+                f"""
+            <div style="text-align: center; padding: 15px; background: rgba(31, 119, 180, 0.1); border-radius: 10px; border: 1px solid rgba(31, 119, 180, 0.3);">
+                <div style="font-size: 28px; font-weight: bold; color: #1f77b4;">{muscle_achieved:.1f}</div>
+                <div style="font-size: 14px; color: #999;">Objectif: {muscle_target:.1f} kg</div>
+                <div style="font-size: 16px; margin-top: 5px; color: {'#38ef7d' if success else '#ff6b6b'};">{gap:+.1f} kg</div>
+                <div style="background: {'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)' if success else 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)'}; padding: 5px 15px; border-radius: 20px; color: white; font-weight: bold; display: inline-block; margin-top: 10px;">{badge_text}</div>
+            </div>
+            """,
+                unsafe_allow_html=True,
+            )
+
+    with obj_col4:
+        st.markdown("**🍽️ Calories moyennes**")
+        cal_target = obj.get("calories_target")
+        cal_achieved = summary.get("avg_daily_calories")
+        if cal_target and cal_achieved:
+            gap = cal_achieved - cal_target
+            success = abs(gap) <= 200
+            badge_text = "✅ Atteint" if success else "⚠️ Écart"
+
+            st.markdown(
+                f"""
+            <div style="text-align: center; padding: 15px; background: rgba(102, 126, 234, 0.1); border-radius: 10px; border: 1px solid rgba(102, 126, 234, 0.3);">
+                <div style="font-size: 28px; font-weight: bold; color: #667eea;">{cal_achieved:.0f}</div>
+                <div style="font-size: 14px; color: #999;">Objectif: {cal_target:.0f} kcal</div>
+                <div style="font-size: 16px; margin-top: 5px; color: {'#38ef7d' if success else '#ff6b6b'};">{gap:+.0f} kcal</div>
+                <div style="background: {'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)' if success else 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)'}; padding: 5px 15px; border-radius: 20px; color: white; font-weight: bold; display: inline-block; margin-top: 10px;">{badge_text}</div>
+            </div>
+            """,
+                unsafe_allow_html=True,
+            )
+
+    st.divider()
+
+# Métriques avec design moderne
 col1, col2, col3, col4 = st.columns(4)
+
 with col1:
-    st.markdown("**⚖️ Poids**")
     weight_delta = summary.get("weight_delta")
     weight_start = summary.get("weight_start")
     weight_end = summary.get("weight_end")
-    st.metric("", f"{weight_delta:+.1f} kg" if weight_delta is not None else "N/A")
-    if weight_start is not None and weight_end is not None:
-        st.caption(f"🔄 {weight_start:.1f} → {weight_end:.1f} kg")
+    weight_monthly = summary.get("weight_monthly")
+    weight_pct = summary.get("weight_pct")
+
+    delta_color = "#2ca02c" if weight_delta and weight_delta < 0 else "#667eea"
+
+    if weight_delta is not None:
+        st.markdown(
+            f"""
+        <div class="metric-card" style="border-left: 4px solid {delta_color};">
+            <div style="font-size: 16px; font-weight: bold; color: #999; margin-bottom: 10px;">⚖️ POIDS</div>
+            <div class="metric-value" style="color: {delta_color};">{weight_delta:+.1f}</div>
+            <div class="metric-label">kg</div>
+            {"<div class='sub-metric'>🔄 " + f"{weight_start:.1f} → {weight_end:.1f} kg</div>" if weight_start and weight_end else ""}
+            {"<div class='sub-metric'>📈 " + f"{weight_monthly:+.2f} kg/mois</div>" if weight_monthly else ""}
+            {"<div class='sub-metric'>📊 " + f"{weight_pct:+.1f}%</div>" if weight_pct else ""}
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            '<div class="metric-card"><div style="color: #999;">Pas de données</div></div>',
+            unsafe_allow_html=True,
+        )
+
 with col2:
-    st.markdown("**🟠 Masse grasse**")
     bf_delta = summary.get("body_fat_delta")
     bf_start = summary.get("body_fat_start")
     bf_end = summary.get("body_fat_end")
-    st.metric("", f"{bf_delta:+.1f}%" if bf_delta is not None else "N/A")
-    if bf_start is not None and bf_end is not None:
-        st.caption(f"🔄 {bf_start:.1f} → {bf_end:.1f}%")
+    bf_monthly = summary.get("body_fat_monthly")
+    bf_pct = summary.get("body_fat_pct")
+
+    delta_color = "#FF8C00"
+
+    if bf_delta is not None:
+        st.markdown(
+            f"""
+        <div class="metric-card" style="border-left: 4px solid {delta_color};">
+            <div style="font-size: 16px; font-weight: bold; color: #999; margin-bottom: 10px;">🔥 GRASSE</div>
+            <div class="metric-value" style="color: {delta_color};">{bf_delta:+.1f}</div>
+            <div class="metric-label">%</div>
+            {"<div class='sub-metric'>🔄 " + f"{bf_start:.1f} → {bf_end:.1f}%</div>" if bf_start and bf_end else ""}
+            {"<div class='sub-metric'>📈 " + f"{bf_monthly:+.2f}%/mois</div>" if bf_monthly else ""}
+            {"<div class='sub-metric'>📊 " + f"{bf_pct:+.1f}%</div>" if bf_pct else ""}
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            '<div class="metric-card"><div style="color: #999;">Pas de données</div></div>',
+            unsafe_allow_html=True,
+        )
+
 with col3:
-    st.markdown("**💪 Masse musculaire**")
     muscle_delta = summary.get("skeletal_muscle_delta")
     muscle_start = summary.get("skeletal_muscle_start")
     muscle_end = summary.get("skeletal_muscle_end")
-    st.metric("", f"{muscle_delta:+.1f} kg" if muscle_delta is not None else "N/A")
-    if muscle_start is not None and muscle_end is not None:
-        st.caption(f"🔄 {muscle_start:.1f} → {muscle_end:.1f} kg")
-with col4:
-    st.markdown("**🍽️ Calories**")
-    avg_cal = summary.get("avg_daily_calories")
-    st.metric("", f"{avg_cal:.0f} kcal/j" if avg_cal is not None else "N/A")
-
-# Détails supplémentaires en dessous
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    weight_monthly = summary.get("weight_monthly")
-    weight_pct = summary.get("weight_pct")
-    if weight_monthly is not None:
-        st.caption(f"📈 {weight_monthly:+.2f} kg/mois")
-        st.caption(f"📊 {weight_pct:+.1f}%")
-with col2:
-    bf_monthly = summary.get("body_fat_monthly")
-    bf_pct = summary.get("body_fat_pct")
-    if bf_monthly is not None:
-        st.caption(f"📈 {bf_monthly:+.2f}%/mois")
-        st.caption(f"📊 {bf_pct:+.1f}%")
-with col3:
     muscle_monthly = summary.get("skeletal_muscle_monthly")
     muscle_pct = summary.get("skeletal_muscle_pct")
-    if muscle_monthly is not None:
-        st.caption(f"📈 {muscle_monthly:+.2f} kg/mois")
-        st.caption(f"📊 {muscle_pct:+.1f}%")
+
+    delta_color = "#1f77b4"
+
+    if muscle_delta is not None:
+        st.markdown(
+            f"""
+        <div class="metric-card" style="border-left: 4px solid {delta_color};">
+            <div style="font-size: 16px; font-weight: bold; color: #999; margin-bottom: 10px;">💪 MUSCULAIRE</div>
+            <div class="metric-value" style="color: {delta_color};">{muscle_delta:+.1f}</div>
+            <div class="metric-label">kg</div>
+            {"<div class='sub-metric'>🔄 " + f"{muscle_start:.1f} → {muscle_end:.1f} kg</div>" if muscle_start and muscle_end else ""}
+            {"<div class='sub-metric'>📈 " + f"{muscle_monthly:+.2f} kg/mois</div>" if muscle_monthly else ""}
+            {"<div class='sub-metric'>📊 " + f"{muscle_pct:+.1f}%</div>" if muscle_pct else ""}
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            '<div class="metric-card"><div style="color: #999;">Pas de données</div></div>',
+            unsafe_allow_html=True,
+        )
+
+with col4:
+    avg_cal = summary.get("avg_daily_calories")
+    min_cal = summary.get("min_daily_calories")
+    max_cal = summary.get("max_daily_calories")
+
+    if avg_cal is not None:
+        st.markdown(
+            f"""
+        <div class="metric-card" style="border-left: 4px solid #667eea;">
+            <div style="font-size: 16px; font-weight: bold; color: #999; margin-bottom: 10px;">🍽️ CALORIES</div>
+            <div class="metric-value" style="color: #667eea;">{avg_cal:.0f}</div>
+            <div class="metric-label">kcal/jour</div>
+            {"<div class='sub-metric'>📉 Min: " + f"{min_cal:.0f} kcal</div>" if min_cal else ""}
+            {"<div class='sub-metric'>📈 Max: " + f"{max_cal:.0f} kcal</div>" if max_cal else ""}
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            '<div class="metric-card"><div style="color: #999;">Pas de données</div></div>',
+            unsafe_allow_html=True,
+        )
 
 st.markdown("---")
 
@@ -310,7 +520,37 @@ with col2:
 
 # Afficher les photos de la phase
 if photos_by_tag:
-    st.markdown("**📸 Photos**")
+    st.markdown("---")
+    st.markdown("### 📸 Galerie photos")
+
+    # Couleurs par tag
+    tag_colors = {
+        "face": {
+            "color": "#1f77b4",
+            "rgba": "rgba(31, 119, 180",
+            "gradient": "linear-gradient(135deg, #1f77b4 0%, #4a9fd8 100%)",
+        },
+        "profil": {
+            "color": "#2ca02c",
+            "rgba": "rgba(44, 160, 44",
+            "gradient": "linear-gradient(135deg, #2ca02c 0%, #5cd65c 100%)",
+        },
+        "dos": {
+            "color": "#FF8C00",
+            "rgba": "rgba(255, 140, 0",
+            "gradient": "linear-gradient(135deg, #FF8C00 0%, #ffb347 100%)",
+        },
+        "bras": {
+            "color": "#d62728",
+            "rgba": "rgba(214, 39, 40",
+            "gradient": "linear-gradient(135deg, #d62728 0%, #ff6b6b 100%)",
+        },
+        "epaule": {
+            "color": "#17becf",
+            "rgba": "rgba(23, 190, 207",
+            "gradient": "linear-gradient(135deg, #17becf 0%, #5edce6 100%)",
+        },
+    }
 
     # Filtrer les photos par période de la phase
     phase_photos = {}
@@ -360,7 +600,15 @@ if photos_by_tag:
         has_after_photo = tag in first_photo_after
 
         if has_phase_photos or has_after_photo:
-            st.markdown(f"**{tag.capitalize()}**")
+            tag_style = tag_colors.get(tag, tag_colors["face"])
+            st.markdown(
+                f"""
+            <div style="margin: 20px 0 10px 0; padding: 8px 15px; background: {tag_style['rgba']}, 0.15); border-left: 4px solid {tag_style['color']}; border-radius: 8px;">
+                <span style="font-size: 16px; font-weight: bold; color: {tag_style['color']};">📷 {tag.upper()}</span>
+            </div>
+            """,
+                unsafe_allow_html=True,
+            )
 
             # Combiner les photos de la phase avec la première photo après
             # La photo après la phase vient en premier (plus récente)
@@ -413,24 +661,36 @@ if photos_by_tag:
 
                             st.markdown(
                                 f"""
-                                <p style='text-align: center; font-weight: bold; margin-bottom: 2px; font-size:0.75em;'>{month_display}</p>
-                                <div style='
-                                    width: 100%;
-                                    aspect-ratio: 3/4;
-                                    height: {img_height}px;
-                                    display: flex;
-                                    align-items: center;
-                                    justify-content: center;
-                                    overflow: hidden;
-                                    background-color: transparent;
-                                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-                                '>
-                                    <img src='data:image/jpeg;base64,{img_base64}' style='
-                                        width: auto;
-                                        height: 100%;
-                                        object-fit: cover;
-                                        border-radius: 4px;
-                                    '>
+                                <div style='margin: 5px;'>
+                                    <div style='
+                                        background: {tag_style["rgba"]}, 0.08);
+                                        border-radius: 12px;
+                                        padding: 12px;
+                                        border: 2px solid {tag_style["rgba"]}, 0.3);
+                                        transition: all 0.3s ease;
+                                    ' onmouseover="this.style.boxShadow='0 6px 12px {tag_style["rgba"]}, 0.4)'; this.style.transform='translateY(-3px)'" onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'; this.style.transform='translateY(0)'">
+                                        <div style='text-align: center; padding: 8px; background: {tag_style["gradient"]}; border-radius: 8px 8px 0 0; margin: -12px -12px 8px -12px;'>
+                                            <span style='color: white; font-weight: bold; font-size: 14px;'>{month_display}</span>
+                                        </div>
+                                        <div style='
+                                            width: 100%;
+                                            aspect-ratio: 3/4;
+                                            height: {img_height}px;
+                                            display: flex;
+                                            align-items: center;
+                                            justify-content: center;
+                                            overflow: hidden;
+                                            border-radius: 8px;
+                                            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                                        '>
+                                            <img src='data:image/jpeg;base64,{img_base64}' style='
+                                                width: auto;
+                                                height: 100%;
+                                                object-fit: cover;
+                                                border-radius: 8px;
+                                            '>
+                                        </div>
+                                    </div>
                                 </div>
                                 """,
                                 unsafe_allow_html=True,
