@@ -32,7 +32,7 @@ if weight_data:
 phases = load_phases(fallback_range=fallback)
 
 # Phase summaries - Timeline (déplacé en premier)
-st.subheader("Récapitulatif des phases")
+st.header("Récapitulatif des phases")
 if phases:
     summaries = [summarize_phase(weight_data, daily_cal_data, p) for p in phases]
 
@@ -219,7 +219,7 @@ else:
     )
 
 # === Sélecteur d'années pour les graphiques ===
-st.subheader("Filtrer par année")
+st.header("Filtrer par année")
 import datetime
 
 
@@ -538,20 +538,191 @@ else:
         cal_chart = phase_rects3 + cal_chart
     st.altair_chart(cal_chart.properties(height=400), use_container_width=True)
 
+# === Efficacité des phases ===
+st.header("⚖️ Efficacité des phases")
 
-# === Formatage des abscisses pour afficher mois + année ===
-def format_month_year(dt):
-    if isinstance(dt, (str, int)):
-        return str(dt)
-    return dt.strftime("%b %Y")
+if phases:
+    summaries = [summarize_phase(weight_data, daily_cal_data, p) for p in phases]
+    
+    # Créer un DataFrame pour comparaison
+    comparison_data = []
+    for summary in summaries:
+        phase_name = summary["label"].split("(")[0].strip()
+        phase_type = summary["label"].split("(")[1].strip(")") if "(" in summary["label"] else "free"
+        
+        comparison_data.append({
+            "Phase": phase_name,
+            "Type": phase_type,
+            "Durée (jours)": summary["days"],
+            "Δ Poids/sem (kg)": summary.get("weight_delta") / (summary["days"] / 7) if summary["days"] > 0 and summary.get("weight_delta") else None,
+            "Δ Masse grasse/sem (%)": summary.get("body_fat_delta") / (summary["days"] / 7) if summary["days"] > 0 and summary.get("body_fat_delta") else None,
+            "Δ Masse musculaire/sem (kg)": summary.get("skeletal_muscle_delta") / (summary["days"] / 7) if summary["days"] > 0 and summary.get("skeletal_muscle_delta") else None,
+        })
+    
+    comparison_df = pd.DataFrame(comparison_data)
+    
+    # Graphiques de comparaison
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("**Variation de poids par semaine**")
+        chart_data = comparison_df[["Phase", "Δ Poids/sem (kg)"]].dropna()
+        if not chart_data.empty:
+            chart = (
+                alt.Chart(chart_data)
+                .mark_bar()
+                .encode(
+                    x=alt.X("Phase:N", title=None, sort=None),
+                    y=alt.Y("Δ Poids/sem (kg):Q", title="kg/semaine"),
+                    color=alt.condition(
+                        alt.datum["Δ Poids/sem (kg)"] > 0,
+                        alt.value("#2ca02c"),
+                        alt.value("#dc3545")
+                    ),
+                    tooltip=[
+                        alt.Tooltip("Phase:N"),
+                        alt.Tooltip("Δ Poids/sem (kg):Q", format=".2f"),
+                    ],
+                )
+            )
+            st.altair_chart(chart.properties(height=250), use_container_width=True)
+    
+    with col2:
+        st.markdown("**Variation de masse grasse par semaine**")
+        chart_data = comparison_df[["Phase", "Δ Masse grasse/sem (%)"]].dropna()
+        if not chart_data.empty:
+            chart = (
+                alt.Chart(chart_data)
+                .mark_bar()
+                .encode(
+                    x=alt.X("Phase:N", title=None, sort=None),
+                    y=alt.Y("Δ Masse grasse/sem (%):Q", title="%/semaine"),
+                    color=alt.condition(
+                        alt.datum["Δ Masse grasse/sem (%)"] > 0,
+                        alt.value("#FF8C00"),
+                        alt.value("#2ca02c")
+                    ),
+                    tooltip=[
+                        alt.Tooltip("Phase:N"),
+                        alt.Tooltip("Δ Masse grasse/sem (%):Q", format=".2f"),
+                    ],
+                )
+            )
+            st.altair_chart(chart.properties(height=250), use_container_width=True)
+    
+    with col3:
+        st.markdown("**Variation de masse musculaire par semaine**")
+        chart_data = comparison_df[["Phase", "Δ Masse musculaire/sem (kg)"]].dropna()
+        if not chart_data.empty:
+            chart = (
+                alt.Chart(chart_data)
+                .mark_bar()
+                .encode(
+                    x=alt.X("Phase:N", title=None, sort=None),
+                    y=alt.Y("Δ Masse musculaire/sem (kg):Q", title="kg/semaine"),
+                    color=alt.condition(
+                        alt.datum["Δ Masse musculaire/sem (kg)"] > 0,
+                        alt.value("#1f77b4"),
+                        alt.value("#dc3545")
+                    ),
+                    tooltip=[
+                        alt.Tooltip("Phase:N"),
+                        alt.Tooltip("Δ Masse musculaire/sem (kg):Q", format=".2f"),
+                    ],
+                )
+            )
+            st.altair_chart(chart.properties(height=250), use_container_width=True)
 
+st.divider()
 
-# Lors de la création des graphiques Altair, appliquer le format personnalisé
-# Exemple pour un graphique Altair :
-# chart = alt.Chart(df).mark_line().encode(
-#     x=alt.X('date:T', axis=alt.Axis(format='%b %Y', title='Mois et année')),
-#     ...
-# )
-# Si tu utilises pandas pour préparer les labels, tu peux faire :
-# df['mois_annee'] = df['date'].apply(format_month_year)
-# et utiliser 'mois_annee' comme abscisse dans le graphique
+# === Heatmap Calendrier ===
+st.header("🗓️ Heatmap Calendrier")
+
+# Sélecteur de métrique et année
+col1, col2 = st.columns([1, 3])
+
+with col1:
+    heatmap_metric = st.selectbox(
+        "Métrique à afficher",
+        ["Calories", "Poids", "Masse grasse", "Masse musculaire"],
+        key="heatmap_metric"
+    )
+
+# Obtenir les années disponibles
+years_available = []
+if not daily_cal_df.empty:
+    years_available.extend(daily_cal_df["date"].dt.year.unique())
+if not w_clean.empty:
+    years_available.extend(w_clean["date"].dt.year.unique())
+years_available = sorted(set(years_available), reverse=True)
+
+with col2:
+    if years_available:
+        selected_year = st.selectbox("Année", years_available, index=0, key="heatmap_year")
+    else:
+        st.warning("Aucune donnée disponible.")
+        st.stop()
+
+# Préparer les données pour le heatmap
+if heatmap_metric == "Calories":
+    heatmap_data_df = daily_cal_df[daily_cal_df["date"].dt.year == selected_year].copy()
+    heatmap_value_col = "calories"
+    heatmap_color_scheme = "greens"
+elif heatmap_metric == "Poids":
+    heatmap_data_df = w_clean[w_clean["date"].dt.year == selected_year].copy()
+    heatmap_value_col = "weight"
+    heatmap_color_scheme = "blues"
+elif heatmap_metric == "Masse grasse":
+    heatmap_data_df = w_clean[w_clean["date"].dt.year == selected_year].copy()
+    heatmap_value_col = "body_fat"
+    heatmap_color_scheme = "oranges"
+else:  # Masse musculaire
+    heatmap_data_df = w_clean[w_clean["date"].dt.year == selected_year].copy()
+    heatmap_value_col = "skeletal_muscle_mass"
+    heatmap_color_scheme = "purples"
+
+if not heatmap_data_df.empty and heatmap_value_col in heatmap_data_df.columns:
+    # Ajouter colonnes pour le calendrier
+    heatmap_data_df["day"] = heatmap_data_df["date"].dt.day
+    heatmap_data_df["month"] = heatmap_data_df["date"].dt.month
+    heatmap_data_df["weekday"] = heatmap_data_df["date"].dt.dayofweek  # 0=Lundi, 6=Dimanche
+    heatmap_data_df["week"] = heatmap_data_df["date"].dt.isocalendar().week
+    
+    # Nettoyer les données
+    heatmap_data_df = heatmap_data_df.dropna(subset=[heatmap_value_col])
+    
+    # Créer le heatmap
+    heatmap = (
+        alt.Chart(heatmap_data_df)
+        .mark_rect()
+        .encode(
+            x=alt.X("week:O", title="Semaine", axis=alt.Axis(labelAngle=0)),
+            y=alt.Y("weekday:O", title="Jour", axis=alt.Axis(
+                labelExpr="['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'][datum.value]"
+            )),
+            color=alt.Color(
+                f"{heatmap_value_col}:Q",
+                scale=alt.Scale(scheme=heatmap_color_scheme),
+                legend=alt.Legend(title=heatmap_metric),
+            ),
+            tooltip=[
+                alt.Tooltip("date:T", title="Date", format="%d/%m/%Y"),
+                alt.Tooltip(f"{heatmap_value_col}:Q", title=heatmap_metric, format=".2f"),
+            ],
+        )
+    )
+    
+    st.altair_chart(heatmap.properties(height=200), use_container_width=True)
+    
+    # Statistiques
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Minimum", f"{heatmap_data_df[heatmap_value_col].min():.1f}")
+    with col2:
+        st.metric("Moyenne", f"{heatmap_data_df[heatmap_value_col].mean():.1f}")
+    with col3:
+        st.metric("Médiane", f"{heatmap_data_df[heatmap_value_col].median():.1f}")
+    with col4:
+        st.metric("Maximum", f"{heatmap_data_df[heatmap_value_col].max():.1f}")
+else:
+    st.warning(f"Aucune donnée de {heatmap_metric.lower()} pour {selected_year}.")
