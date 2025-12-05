@@ -11,10 +11,15 @@ st.set_page_config(page_title="Import", page_icon="📥", layout="wide")
 
 st.title("📥 Import de données")
 
-DATA_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data"
-)
-DATA_DIR = os.path.abspath(DATA_DIR)
+ENV = os.environ.get("ENV", "dev")
+if ENV == "production":
+    DATA_DIR = "/app/data"
+else:
+    DATA_DIR = os.path.abspath(
+        os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data"
+        )
+    )
 
 st.markdown(
     """
@@ -38,12 +43,19 @@ with col1:
 
     if weight_file:
         if st.button("💾 Sauvegarder le fichier poids", key="save_weight"):
-            # Sauvegarder avec le nom d'origine
-            dest_path = os.path.join(DATA_DIR, weight_file.name)
-            with open(dest_path, "wb") as f:
-                f.write(weight_file.getbuffer())
-            st.success(f"✅ Fichier sauvegardé: {weight_file.name}")
-            st.rerun()
+            try:
+                # Créer le dossier data si nécessaire
+                os.makedirs(DATA_DIR, exist_ok=True)
+
+                # Sauvegarder avec le nom d'origine
+                dest_path = os.path.join(DATA_DIR, weight_file.name)
+                with open(dest_path, "wb") as f:
+                    f.write(weight_file.getbuffer())
+                st.success(f"✅ Fichier sauvegardé dans: {dest_path}")
+                st.rerun()
+            except Exception as e:  # noqa: BLE001
+                st.error(f"❌ Erreur lors de la sauvegarde: {str(e)}")
+                st.info(f"DATA_DIR: {DATA_DIR}")
 
 with col2:
     st.markdown("### Apport alimentaire")
@@ -56,11 +68,18 @@ with col2:
 
     if food_file:
         if st.button("💾 Sauvegarder le fichier alimentation", key="save_food"):
-            dest_path = os.path.join(DATA_DIR, food_file.name)
-            with open(dest_path, "wb") as f:
-                f.write(food_file.getbuffer())
-            st.success(f"✅ Fichier sauvegardé: {food_file.name}")
-            st.rerun()
+            try:
+                # Créer le dossier data si nécessaire
+                os.makedirs(DATA_DIR, exist_ok=True)
+
+                dest_path = os.path.join(DATA_DIR, food_file.name)
+                with open(dest_path, "wb") as f:
+                    f.write(food_file.getbuffer())
+                st.success(f"✅ Fichier sauvegardé dans: {dest_path}")
+                st.rerun()
+            except Exception as e:  # noqa: BLE001
+                st.error(f"❌ Erreur lors de la sauvegarde: {str(e)}")
+                st.info(f"DATA_DIR: {DATA_DIR}")
 
 # Afficher les fichiers CSV existants
 st.markdown("### 📁 Fichiers CSV actuels")
@@ -107,42 +126,51 @@ if photo_files:
     st.markdown(f"**{len(photo_files)} photo(s) sélectionnée(s)**")
 
     if st.button(f"💾 Importer {len(photo_files)} photo(s)", key="save_photos"):
-        photos_dir = os.path.join(DATA_DIR, "photos")
-        success_count = 0
-        error_count = 0
+        try:
+            photos_dir = os.path.join(DATA_DIR, "photos")
+            # Créer le dossier photos si nécessaire
+            os.makedirs(photos_dir, exist_ok=True)
 
-        for photo_file in photo_files:
-            # Extraire la date du nom de fichier
-            match = re.match(r"(\d{4})(\d{2})(\d{2})", photo_file.name)
-            if match:
-                year = match.group(1)
-                month = match.group(2)
-                month_dir = os.path.join(photos_dir, f"{year}-{month}")
+            success_count = 0
+            error_count = 0
 
-                # Créer le dossier si nécessaire
-                os.makedirs(month_dir, exist_ok=True)
+            for photo_file in photo_files:
+                # Extraire la date du nom de fichier
+                match = re.match(r"(\d{4})(\d{2})(\d{2})", photo_file.name)
+                if match:
+                    year = match.group(1)
+                    month = match.group(2)
+                    month_dir = os.path.join(photos_dir, f"{year}-{month}")
 
-                # Extension du fichier
-                ext = os.path.splitext(photo_file.name)[1]
-                dest_path = os.path.join(month_dir, f"{tag}{ext}")
+                    # Créer le dossier si nécessaire
+                    os.makedirs(month_dir, exist_ok=True)
 
-                # Sauvegarder
-                with open(dest_path, "wb") as f:
-                    f.write(photo_file.getbuffer())
+                    # Extension du fichier
+                    ext = os.path.splitext(photo_file.name)[1]
+                    dest_path = os.path.join(month_dir, f"{tag}{ext}")
 
-                success_count += 1
-                st.text(f"✅ {photo_file.name} → {year}-{month}/{tag}{ext}")
-            else:
-                error_count += 1
-                st.warning(f"⚠️ Impossible d'extraire la date de: {photo_file.name}")
+                    # Sauvegarder
+                    with open(dest_path, "wb") as f:
+                        f.write(photo_file.getbuffer())
 
-        if success_count > 0:
-            st.success(f"✅ {success_count} photo(s) importée(s) avec succès!")
-        if error_count > 0:
-            st.error(f"❌ {error_count} photo(s) ignorée(s) (format de nom invalide)")
+                    success_count += 1
+                    st.text(f"✅ {photo_file.name} → {year}-{month}/{tag}{ext}")
+                else:
+                    error_count += 1
+                    st.warning(f"⚠️ Impossible d'extraire la date de: {photo_file.name}")
 
-        if success_count > 0:
-            st.rerun()
+            if success_count > 0:
+                st.success(f"✅ {success_count} photo(s) importée(s) avec succès!")
+            if error_count > 0:
+                st.error(
+                    f"❌ {error_count} photo(s) ignorée(s) (format de nom invalide)"
+                )
+
+            if success_count > 0:
+                st.rerun()
+        except Exception as e:  # noqa: BLE001
+            st.error(f"❌ Erreur lors de l'import: {str(e)}")
+            st.info(f"DATA_DIR: {DATA_DIR}")
 
 # Afficher les photos existantes par tag
 st.markdown("### 📁 Photos actuelles")
