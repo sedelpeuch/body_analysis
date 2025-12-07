@@ -19,17 +19,18 @@ TAG_MAPPING = {
     "Épaule": "epaule"
 }
 
-def extract_date_from_filename(filename: str) -> tuple[str, str] | None:
-    """Extrait la date au format YYYY-MM du nom de fichier YYYYMMDD_*.jpg"""
+def extract_date_from_filename(filename: str) -> tuple[str, str, str] | None:
+    """Extrait la date au format YYYY-MM-DD du nom de fichier YYYYMMDD_*.jpg"""
     match = re.match(r'(\d{4})(\d{2})(\d{2})', filename)
     if match:
         year = match.group(1)
         month = match.group(2)
-        return year, month
+        day = match.group(3)
+        return year, month, day
     return None
 
 def reorganize_photos():
-    """Réorganise les photos de Corps/ vers data/photos/YYYY-MM/tag.ext"""
+    """Réorganise les photos de Corps/ vers data/photos/YYYY-MM-DD/tag.ext"""
     
     if not CORPS_DIR.exists():
         print(f"Le dossier {CORPS_DIR} n'existe pas")
@@ -59,19 +60,19 @@ def reorganize_photos():
                 print(f"  Impossible d'extraire la date de: {img_file.name}")
                 continue
             
-            year, month = date_info
-            month_dir = PHOTOS_DIR / f"{year}-{month}"
-            month_dir.mkdir(parents=True, exist_ok=True)
+            year, month, day = date_info
+            date_dir = PHOTOS_DIR / f"{year}-{month}-{day}"
+            date_dir.mkdir(parents=True, exist_ok=True)
             
             # Nom de destination: tag.ext
-            dest_file = month_dir / f"{tag_name}{img_file.suffix}"
+            dest_file = date_dir / f"{tag_name}{img_file.suffix}"
             
             # Copier le fichier
             if dest_file.exists():
-                print(f"  ⚠️  {dest_file.name} existe déjà dans {month_dir.name}, ignoré")
+                print(f"  ⚠️  {dest_file.name} existe déjà dans {date_dir.name}, ignoré")
             else:
                 shutil.copy2(img_file, dest_file)
-                print(f"  ✓ {img_file.name} -> {month_dir.name}/{dest_file.name}")
+                print(f"  ✓ {img_file.name} -> {date_dir.name}/{dest_file.name}")
 
 if __name__ == "__main__":
     print("Réorganisation des photos...")

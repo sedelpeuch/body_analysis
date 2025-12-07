@@ -560,37 +560,28 @@ if photos_by_tag:
         phase_photos[tag] = []
         photos_after = []
 
-        for month, img_path in tag_photos.items():
-            # Convertir YYYY-MM en date
+        for date, img_path in tag_photos.items():
+            # Convertir YYYY-MM-DD en date
             try:
-                month_date = datetime.strptime(month, "%Y-%m")
+                photo_date = datetime.strptime(date, "%Y-%m-%d")
                 # Vérifier si dans la période de la phase
-                if phase.start <= month_date <= phase.end:
-                    phase_photos[tag].append((month, img_path))
+                if phase.start <= photo_date <= phase.end:
+                    phase_photos[tag].append((date, img_path))
                 # Vérifier si c'est après la fin de la phase
-                elif month_date > phase.end:
-                    photos_after.append((month, img_path))
+                elif photo_date > phase.end:
+                    photos_after.append((date, img_path))
             except (ValueError, TypeError):
                 continue
 
         # Trier par date décroissante (plus récentes en premier)
         phase_photos[tag] = sorted(phase_photos[tag], key=lambda x: x[0], reverse=True)
 
-        # Trouver la première photo du mois suivant immédiatement la phase
+        # Trouver la première photo après la phase
         if photos_after:
-            # Calculer le mois suivant la fin de la phase
-            year = phase.end.year
-            month = phase.end.month + 1
-            if month > 12:
-                month = 1
-                year += 1
-            next_month_str = f"{year:04d}-{month:02d}"
-
-            # Chercher uniquement la photo du mois suivant exact
-            for month_key, img_path in photos_after:
-                if month_key == next_month_str:
-                    first_photo_after[tag] = (month_key, img_path)
-                    break
+            # Trier les photos après par date
+            photos_after.sort(key=lambda x: x[0])
+            # Prendre la première (la plus proche de la fin de phase)
+            first_photo_after[tag] = photos_after[0]
 
     # Afficher chaque tag sur une ligne dans l'ordre spécifié
     tag_order = ["face", "profil", "dos", "bras", "epaule"]
@@ -630,7 +621,7 @@ if photos_by_tag:
                 cols = st.columns(num_cols)
                 img_height = 280  # Hauteur réduite pour compression
 
-                for idx, (month, img_path) in enumerate(photos_to_display):
+                for idx, (date, img_path) in enumerate(photos_to_display):
                     if idx < 5:  # Limiter à 5 photos
                         with cols[idx]:
                             # Charger et encoder l'image
@@ -639,8 +630,8 @@ if photos_by_tag:
                             img.save(buffered, format="JPEG")
                             img_base64 = base64.b64encode(buffered.getvalue()).decode()
 
-                            # Convertir YYYY-MM en "Mois Année"
-                            date_obj = datetime.strptime(month, "%Y-%m")
+                            # Convertir YYYY-MM-DD en "JJ Mois Année"
+                            date_obj = datetime.strptime(date, "%Y-%m-%d")
                             month_names = {
                                 1: "Jan",
                                 2: "Fév",
@@ -655,8 +646,8 @@ if photos_by_tag:
                                 11: "Nov",
                                 12: "Déc",
                             }
-                            month_display = (
-                                f"{month_names[date_obj.month]} {date_obj.year}"
+                            date_display = (
+                                f"{date_obj.day} {month_names[date_obj.month]} {date_obj.year}"
                             )
 
                             st.markdown(
@@ -670,7 +661,7 @@ if photos_by_tag:
                                         transition: all 0.3s ease;
                                     ' onmouseover="this.style.boxShadow='0 6px 12px {tag_style["rgba"]}, 0.4)'; this.style.transform='translateY(-3px)'" onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'; this.style.transform='translateY(0)'">
                                         <div style='text-align: center; padding: 8px; background: {tag_style["gradient"]}; border-radius: 8px 8px 0 0; margin: -12px -12px 8px -12px;'>
-                                            <span style='color: white; font-weight: bold; font-size: 14px;'>{month_display}</span>
+                                            <span style='color: white; font-weight: bold; font-size: 14px;'>{date_display}</span>
                                         </div>
                                         <div style='
                                             width: 100%;

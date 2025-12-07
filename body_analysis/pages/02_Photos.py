@@ -129,29 +129,37 @@ if st.session_state.selected_tag:
     )
 
     tag_photos = photos_by_tag[tag]
-    months = sorted(tag_photos.keys(), reverse=True)
+    dates = sorted(tag_photos.keys(), reverse=True)
 
-    if not months:
+    if not dates:
         st.info(f"Aucune photo pour le tag '{tag}'")
     else:
         # Affichage adapté au format 3:4 (portrait)
         num_cols = 5
         img_height = 480  # 3:4 ratio, largeur auto
 
-        def first_sunday(year, month):
-            """Trouve le premier dimanche du mois donné."""
-            d = datetime(year, month, 1)
-            while d.weekday() != 6:  # 6 = dimanche
-                d = d.replace(day=d.day + 1)
-            return d
+        month_names = {
+            1: "Janvier",
+            2: "Février",
+            3: "Mars",
+            4: "Avril",
+            5: "Mai",
+            6: "Juin",
+            7: "Juillet",
+            8: "Août",
+            9: "Septembre",
+            10: "Octobre",
+            11: "Novembre",
+            12: "Décembre",
+        }
 
-        for idx in range(0, len(months), num_cols):
+        for idx in range(0, len(dates), num_cols):
             cols = st.columns(num_cols)
             for col_idx in range(num_cols):
-                month_idx = idx + col_idx
-                if month_idx < len(months):
-                    month = months[month_idx]
-                    img_path = tag_photos[month]
+                date_idx = idx + col_idx
+                if date_idx < len(dates):
+                    date = dates[date_idx]
+                    img_path = tag_photos[date]
 
                     # Charger et encoder l'image en base64
                     img = load_image(img_path, blur=confidential)
@@ -160,26 +168,12 @@ if st.session_state.selected_tag:
                     img_base64 = base64.b64encode(buffered.getvalue()).decode()
 
                     with cols[col_idx]:
-                        # Convertir YYYY-MM en "Mois Année"
-                        date_obj = datetime.strptime(month, "%Y-%m")
-                        month_names = {
-                            1: "Janvier",
-                            2: "Février",
-                            3: "Mars",
-                            4: "Avril",
-                            5: "Mai",
-                            6: "Juin",
-                            7: "Juillet",
-                            8: "Août",
-                            9: "Septembre",
-                            10: "Octobre",
-                            11: "Novembre",
-                            12: "Décembre",
-                        }
-                        month_display = f"{month_names[date_obj.month]} {date_obj.year}"
+                        # Convertir YYYY-MM-DD en "JJ Mois Année"
+                        date_obj = datetime.strptime(date, "%Y-%m-%d")
+                        date_display = f"{date_obj.day} {month_names[date_obj.month]} {date_obj.year}"
 
-                        # Calculer la date de la photo (premier dimanche du mois)
-                        photo_date = first_sunday(date_obj.year, date_obj.month)
+                        # Utiliser la date exacte de la photo
+                        photo_date = date_obj
 
                         # Trouver la mesure la plus proche de cette date
                         measures_html = ""
@@ -210,7 +204,7 @@ if st.session_state.selected_tag:
                                     transition: all 0.3s ease;
                                 ' onmouseover="this.style.boxShadow='0 6px 12px {tag_style["rgba"]}, 0.4)'; this.style.transform='translateY(-3px)'" onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'; this.style.transform='translateY(0)'">
                                     <div style='text-align: center; padding: 10px; background: {tag_style["gradient"]};'>
-                                        <div style='color: white; font-weight: bold; font-size: 16px; margin-bottom: 5px;'>{month_display}</div>
+                                        <div style='color: white; font-weight: bold; font-size: 16px; margin-bottom: 5px;'>{date_display}</div>
                                         <div style='font-size: 13px; color: rgba(255,255,255,0.9);'>{measures_html}</div>
                                     </div>
                                     <div style='

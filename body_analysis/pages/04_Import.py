@@ -102,6 +102,8 @@ st.markdown(
     """
 Importez vos photos organisées par tag. Chaque photo doit avoir un nom de fichier au format **YYYYMMDD_HHMMSS.jpg**.
 
+Les photos seront organisées dans des dossiers **YYYY-MM-DD** (un dossier par date), permettant d'avoir plusieurs photos le même mois.
+
 **Tags disponibles:** face, profil, dos, bras, epaule
 """
 )
@@ -140,21 +142,22 @@ if photo_files:
                 if match:
                     year = match.group(1)
                     month = match.group(2)
-                    month_dir = os.path.join(photos_dir, f"{year}-{month}")
+                    day = match.group(3)
+                    date_dir = os.path.join(photos_dir, f"{year}-{month}-{day}")
 
                     # Créer le dossier si nécessaire
-                    os.makedirs(month_dir, exist_ok=True)
+                    os.makedirs(date_dir, exist_ok=True)
 
                     # Extension du fichier
                     ext = os.path.splitext(photo_file.name)[1]
-                    dest_path = os.path.join(month_dir, f"{tag}{ext}")
+                    dest_path = os.path.join(date_dir, f"{tag}{ext}")
 
                     # Sauvegarder
                     with open(dest_path, "wb") as f:
                         f.write(photo_file.getbuffer())
 
                     success_count += 1
-                    st.text(f"✅ {photo_file.name} → {year}-{month}/{tag}{ext}")
+                    st.text(f"✅ {photo_file.name} → {year}-{month}-{day}/{tag}{ext}")
                 else:
                     error_count += 1
                     st.warning(f"⚠️ Impossible d'extraire la date de: {photo_file.name}")
@@ -179,20 +182,20 @@ photos_dir = os.path.join(DATA_DIR, "photos")
 if os.path.exists(photos_dir):
     # Compter les photos par tag
     tag_counts = {}
-    for month_dir in sorted(os.listdir(photos_dir)):
-        month_path = os.path.join(photos_dir, month_dir)
-        if os.path.isdir(month_path):
-            for photo_file in os.listdir(month_path):
+    for date_dir in sorted(os.listdir(photos_dir)):
+        date_path = os.path.join(photos_dir, date_dir)
+        if os.path.isdir(date_path):
+            for photo_file in os.listdir(date_path):
                 if photo_file.lower().endswith((".jpg", ".jpeg", ".png")):
                     tag_name = os.path.splitext(photo_file)[0].lower()
                     if tag_name not in tag_counts:
                         tag_counts[tag_name] = []
-                    tag_counts[tag_name].append(month_dir)
+                    tag_counts[tag_name].append(date_dir)
 
     if tag_counts:
-        for tag_name, months in sorted(tag_counts.items()):
+        for tag_name, dates in sorted(tag_counts.items()):
             st.text(
-                f"• {tag_name}: {len(months)} photo(s) ({', '.join(sorted(months))})"
+                f"• {tag_name}: {len(dates)} photo(s) ({', '.join(sorted(dates))})"
             )
     else:
         st.info("Aucune photo trouvée")
