@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import os
-import shutil
 import re
-from pathlib import Path
-from datetime import datetime
+
 import streamlit as st
 
 st.set_page_config(page_title="Import", page_icon="📥", layout="wide")
@@ -17,23 +15,24 @@ if ENV == "production":
 else:
     DATA_DIR = os.path.abspath(
         os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data"
-        )
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            "data",
+        ),
     )
 
 st.markdown(
     """
 Cette page permet d'importer les données nécessaires au fonctionnement de l'application.
-"""
+""",
 )
 
 # Section 1: CSV Samsung Health
 st.markdown("## 📊 Fichiers CSV Samsung Health")
 
-col1, col2 = st.columns(2)
+col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.markdown("### Poids et composition")
+    st.markdown("### Poids")
     weight_file = st.file_uploader(
         "Fichier com.samsung.health.weight*.csv",
         type=["csv"],
@@ -54,11 +53,11 @@ with col1:
                 st.success(f"✅ Fichier sauvegardé dans: {dest_path}")
                 st.rerun()
             except Exception as e:  # noqa: BLE001
-                st.error(f"❌ Erreur lors de la sauvegarde: {str(e)}")
+                st.error(f"❌ Erreur lors de la sauvegarde: {e!s}")
                 st.info(f"DATA_DIR: {DATA_DIR}")
 
 with col2:
-    st.markdown("### Apport alimentaire")
+    st.markdown("### Alimentation")
     food_file = st.file_uploader(
         "Fichier com.samsung.health.food_intake*.csv",
         type=["csv"],
@@ -78,9 +77,30 @@ with col2:
                 st.success(f"✅ Fichier sauvegardé dans: {dest_path}")
                 st.rerun()
             except Exception as e:  # noqa: BLE001
-                st.error(f"❌ Erreur lors de la sauvegarde: {str(e)}")
+                st.error(f"❌ Erreur lors de la sauvegarde: {e!s}")
                 st.info(f"DATA_DIR: {DATA_DIR}")
 
+with col3:
+    st.markdown("### Exercice")
+    exercise_file = st.file_uploader(
+        "Fichier com.samsung.shealth.exercise*.csv",
+        type=["csv"],
+        key="exercise_upload",
+        help="Exporter depuis Samsung Health: Paramètres > Télécharger mes données > Exercice",
+    )
+
+    if exercise_file:
+        if st.button("💾 Sauvegarder le fichier exercice", key="save_exercise"):
+            try:
+                os.makedirs(DATA_DIR, exist_ok=True)
+                dest_path = os.path.join(DATA_DIR, exercise_file.name)
+                with open(dest_path, "wb") as f:
+                    f.write(exercise_file.getbuffer())
+                st.success(f"✅ Fichier sauvegardé dans: {dest_path}")
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Erreur lors de la sauvegarde: {e!s}")
+                st.info(f"DATA_DIR: {DATA_DIR}")
 # Afficher les fichiers CSV existants
 st.markdown("### 📁 Fichiers CSV actuels")
 existing_csvs = []
@@ -105,7 +125,7 @@ Importez vos photos organisées par tag. Chaque photo doit avoir un nom de fichi
 Les photos seront organisées dans des dossiers **YYYY-MM-DD** (un dossier par date), permettant d'avoir plusieurs photos le même mois.
 
 **Tags disponibles:** face, profil, dos, bras, epaule
-"""
+""",
 )
 
 # Tag selector
@@ -166,13 +186,13 @@ if photo_files:
                 st.success(f"✅ {success_count} photo(s) importée(s) avec succès!")
             if error_count > 0:
                 st.error(
-                    f"❌ {error_count} photo(s) ignorée(s) (format de nom invalide)"
+                    f"❌ {error_count} photo(s) ignorée(s) (format de nom invalide)",
                 )
 
             if success_count > 0:
                 st.rerun()
         except Exception as e:  # noqa: BLE001
-            st.error(f"❌ Erreur lors de l'import: {str(e)}")
+            st.error(f"❌ Erreur lors de l'import: {e!s}")
             st.info(f"DATA_DIR: {DATA_DIR}")
 
 # Afficher les photos existantes par tag
@@ -195,7 +215,7 @@ if os.path.exists(photos_dir):
     if tag_counts:
         for tag_name, dates in sorted(tag_counts.items()):
             st.text(
-                f"• {tag_name}: {len(dates)} photo(s) ({', '.join(sorted(dates))})"
+                f"• {tag_name}: {len(dates)} photo(s) ({', '.join(sorted(dates))})",
             )
     else:
         st.info("Aucune photo trouvée")
@@ -207,14 +227,14 @@ st.divider()
 # Section 3: Configuration des phases
 st.markdown("## ⚙️ Configuration")
 st.markdown(
-    "Le fichier `data/phases.json` doit être édité manuellement pour définir vos phases."
+    "Le fichier `data/phases.json` doit être édité manuellement pour définir vos phases.",
 )
 
 phases_path = os.path.join(DATA_DIR, "phases.json")
 if os.path.exists(phases_path):
     st.success("✅ Fichier phases.json trouvé")
     if st.checkbox("Afficher le contenu"):
-        with open(phases_path, "r", encoding="utf-8") as f:
+        with open(phases_path, encoding="utf-8") as f:
             st.code(f.read(), language="json")
 else:
     st.warning("⚠️ Fichier phases.json non trouvé")
@@ -239,5 +259,5 @@ else:
     ```
     
     **Types disponibles:** `free`, `bulk`, `cut`, `maintain`
-    """
+    """,
     )
