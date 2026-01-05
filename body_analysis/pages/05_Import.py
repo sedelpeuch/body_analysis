@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
+import zipfile
 
 import streamlit as st
 
@@ -20,102 +22,149 @@ else:
         ),
     )
 
+
+def _cleanup_old_csv_files(data_dir: str) -> None:
+    """Garder seulement le fichier le plus récent pour chaque type."""
+    csv_patterns = {
+        "weight": "com.samsung.health.weight",
+        "food": "com.samsung.health.food_intake",
+        "exercise": "com.samsung.shealth.exercise",
+    }
+
+    for csv_type, pattern in csv_patterns.items():
+        # Trouver tous les fichiers correspondant au pattern
+        matching_files = []
+        for file in os.listdir(data_dir):
+            if file.endswith(".csv") and pattern in file:
+                file_path = os.path.join(data_dir, file)
+                matching_files.append((file, file_path))
+
+        # Si plusieurs fichiers, garder que le plus récent
+        if len(matching_files) > 1:
+            # Trier par date de modification (plus récent en dernier)
+            matching_files.sort(key=lambda x: os.path.getmtime(x[1]))
+
+            # Supprimer tous sauf le dernier
+            for file_to_delete, file_path in matching_files[:-1]:
+                os.remove(file_path)
+                st.info(f"🗑️ Supprimé ancien fichier: {file_to_delete}")
+
+
 st.markdown(
     """
 Cette page permet d'importer les données nécessaires au fonctionnement de l'application.
 """,
 )
 
-# Section 1: CSV Samsung Health
-st.markdown("## 📊 Fichiers CSV Samsung Health")
+# Section 0: Import ZIP Samsung Health
+st.markdown("## 📦 Import depuis ZIP Samsung Health")
 
-col1, col2, col3 = st.columns(3)
+st.markdown(
+    """
+Importez directement le ZIP exporté depuis Samsung Health. 
+L'application extraira automatiquement les fichiers pertinents (CSV et JSON).
+""",
+)
 
-with col1:
-    st.markdown("### Poids")
-    weight_file = st.file_uploader(
-        "Fichier com.samsung.health.weight*.csv",
-        type=["csv"],
-        key="weight_upload",
-        help="Exporter depuis Samsung Health: Paramètres > Télécharger mes données > Poids",
-    )
+zip_file = st.file_uploader(
+    "Fichier ZIP Samsung Health",
+    type=["zip"],
+    key="samsung_zip_upload",
+    help="Téléchargez le fichier samsunghealth_*.zip depuis Samsung Health",
+)
 
-    if weight_file:
-        if st.button("💾 Sauvegarder le fichier poids", key="save_weight"):
-            try:
+if zip_file:
+    if st.button("📥 Importer le ZIP Samsung Health", key="import_zip"):
+        try:
+            with st.spinner("Extraction du ZIP..."):
                 # Créer le dossier data si nécessaire
                 os.makedirs(DATA_DIR, exist_ok=True)
 
-                # Sauvegarder avec le nom d'origine
-                dest_path = os.path.join(DATA_DIR, weight_file.name)
-                with open(dest_path, "wb") as f:
-                    f.write(weight_file.getbuffer())
-                st.success(f"✅ Fichier sauvegardé dans: {dest_path}")
-                st.rerun()
-            except Exception as e:  # noqa: BLE001
-                st.error(f"❌ Erreur lors de la sauvegarde: {e!s}")
-                st.info(f"DATA_DIR: {DATA_DIR}")
+                # Extraire le ZIP
+                with zipfile.ZipFile(zip_file, "r") as zip_ref:
+                    # Créer un dossier temporaire
+                    temp_dir = os.path.join(DATA_DIR, ".temp_samsung_import")
+                    os.makedirs(temp_dir, exist_ok=True)
 
-with col2:
-    st.markdown("### Alimentation")
-    food_file = st.file_uploader(
-        "Fichier com.samsung.health.food_intake*.csv",
-        type=["csv"],
-        key="food_upload",
-        help="Exporter depuis Samsung Health: Paramètres > Télécharger mes données > Nutrition",
-    )
+                    # Extraire tout
+                    zip_ref.extractall(temp_dir)
 
-    if food_file:
-        if st.button("💾 Sauvegarder le fichier alimentation", key="save_food"):
-            try:
-                # Créer le dossier data si nécessaire
-                os.makedirs(DATA_DIR, exist_ok=True)
+                    # Chercher le dossier root (premier niveau du ZIP)
+                    root_dir = temp_dir
+                    items_in_temp = os.listdir(temp_dir)
+                    if len(items_in_temp) == 1:
+                        first_item = os.path.join(temp_dir, items_in_temp[0])
+                        if os.path.isdir(first_item):
+                            # C'est un dossier unique, on rentre dedans
+                            root_dir = first_item
 
-                dest_path = os.path.join(DATA_DIR, food_file.name)
-                with open(dest_path, "wb") as f:
-                    f.write(food_file.getbuffer())
-                st.success(f"✅ Fichier sauvegardé dans: {dest_path}")
-                st.rerun()
-            except Exception as e:  # noqa: BLE001
-                st.error(f"❌ Erreur lors de la sauvegarde: {e!s}")
-                st.info(f"DATA_DIR: {DATA_DIR}")
+                    extracted_files = []
 
-with col3:
-    st.markdown("### Exercice")
-    exercise_file = st.file_uploader(
-        "Fichier com.samsung.shealth.exercise*.csv",
-        type=["csv"],
-        key="exercise_upload",
-        help="Exporter depuis Samsung Health: Paramètres > Télécharger mes données > Exercice",
-    )
+                    # Copier les fichiers CSV pertinents
+                    csv_patterns = [
+                        "com.samsung.health.weight",
+                        "com.samsung.health.food_intake",
+                        "com.samsung.shealth.exercise",
+                    ]
 
-    if exercise_file:
-        if st.button("💾 Sauvegarder le fichier exercice", key="save_exercise"):
-            try:
-                os.makedirs(DATA_DIR, exist_ok=True)
-                dest_path = os.path.join(DATA_DIR, exercise_file.name)
-                with open(dest_path, "wb") as f:
-                    f.write(exercise_file.getbuffer())
-                st.success(f"✅ Fichier sauvegardé dans: {dest_path}")
-                st.rerun()
-            except Exception as e:
-                st.error(f"❌ Erreur lors de la sauvegarde: {e!s}")
-                st.info(f"DATA_DIR: {DATA_DIR}")
-# Afficher les fichiers CSV existants
-st.markdown("### 📁 Fichiers CSV actuels")
-existing_csvs = []
-if os.path.exists(DATA_DIR):
-    existing_csvs = [f for f in os.listdir(DATA_DIR) if f.endswith(".csv")]
+                    for file in os.listdir(root_dir):
+                        file_path = os.path.join(root_dir, file)
+                        if os.path.isfile(file_path) and file.endswith(".csv"):
+                            # Vérifier si c'est un fichier pertinent
+                            for pattern in csv_patterns:
+                                if pattern in file:
+                                    dest_path = os.path.join(DATA_DIR, file)
+                                    shutil.copy2(file_path, dest_path)
+                                    extracted_files.append(file)
+                                    st.success(f"✅ Importé: {file}")
+                                    break
 
-if existing_csvs:
-    for csv_file in sorted(existing_csvs):
-        st.text(f"• {csv_file}")
-else:
-    st.info("Aucun fichier CSV trouvé")
+                    # Copier les dossiers JSON pertinents
+                    json_dir = os.path.join(root_dir, "jsons")
+                    if os.path.exists(json_dir):
+                        dest_json_dir = os.path.join(
+                            DATA_DIR,
+                            "com.samsung.shealth.exercise",
+                        )
+                        json_folders = [
+                            "com.samsung.shealth.exercise",
+                        ]
+
+                        for json_folder in json_folders:
+                            src_path = os.path.join(json_dir, json_folder)
+                            if os.path.exists(src_path):
+                                # Supprimer le dossier existant s'il existe
+                                if os.path.exists(dest_json_dir):
+                                    shutil.rmtree(dest_json_dir)
+                                # Copier le nouveau
+                                shutil.copytree(src_path, dest_json_dir)
+                                extracted_files.append(f"jsons/{json_folder}")
+                                st.success(f"✅ Importé: jsons/{json_folder}")
+
+                    # Nettoyer le dossier temporaire
+                    shutil.rmtree(temp_dir)
+
+                # Garder seulement les fichiers les plus récents
+                _cleanup_old_csv_files(DATA_DIR)
+
+                if extracted_files:
+                    st.success(
+                        f"✅ Import réussi! {len(extracted_files)} élément(s) importé(s)",
+                    )
+                    st.rerun()
+                else:
+                    st.warning("⚠️ Aucun fichier pertinent trouvé dans le ZIP")
+
+        except zipfile.BadZipFile:
+            st.error("❌ Le fichier n'est pas un ZIP valide")
+        except Exception as e:  # noqa: BLE001
+            st.error(f"❌ Erreur lors de l'import: {e!s}")
+            st.info(f"DATA_DIR: {DATA_DIR}")
+
 
 st.divider()
 
-# Section 2: Photos
+# Section: Photos
 st.markdown("## 📸 Photos mensuelles")
 
 st.markdown(
