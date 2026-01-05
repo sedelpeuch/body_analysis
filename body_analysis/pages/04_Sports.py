@@ -689,7 +689,6 @@ if selected_sport == "Natation":
     # Charger et analyser les données JSON pour les statistiques
     if not df_sport.empty and "additionnal" in df_sport.columns:
         df_with_additional = df_sport[df_sport["additionnal"].notna()].copy()
-        st.subheader("Évolution de la vitesse par nage")
 
         # Collecter les données pour le graphique
         speed_evolution_data = []
@@ -1191,3 +1190,206 @@ if selected_sport == "Natation":
                             .interactive()
                         )
                         st.altair_chart(chart_vitesse, use_container_width=True)
+
+
+# ============================================================================
+# SECTION RUNNING - COURSE À PIED
+# ============================================================================
+
+if selected_sport == "Course à pied":
+    st.divider()
+    st.markdown("## 🏃 Course à pied")
+
+    # Filtrer les courses à pied dans la plage de dates sélectionnée
+    running_exercises = df_sport[df_sport["sport"] == "Course à pied"].copy()
+
+    if len(running_exercises) == 0:
+        st.info("Aucune course à pied enregistrée dans la période sélectionnée")
+    else:
+        # === STATS GLOBALES ===
+        st.subheader("📊 Statistiques globales")
+
+        # Préparer les données
+        running_exercises["distance_km"] = running_exercises["distance"] / 1000
+        running_exercises["duration_min"] = running_exercises["duration"] / 1000 / 60
+        running_exercises["duration_s"] = running_exercises["duration"] / 1000
+        running_exercises["allure_min_par_km"] = (
+            running_exercises["duration_min"] / running_exercises["distance_km"]
+        )
+        running_exercises["vitesse_ms"] = (
+            running_exercises["distance"] / running_exercises["duration_s"]
+        )
+
+        # Parser les fichiers JSON du running une seule fois
+        cadence_list = []
+        vitesse_kmh_list = []
+
+        for additional_filename in running_exercises["additionnal"]:
+            cadence = None
+            speed_kmh = None
+
+            if additional_filename:
+                try:
+                    folder = additional_filename[0].lower()
+                    file_path = os.path.join(
+                        DATA_DIR_DEFAULT,
+                        "com.samsung.shealth.exercise",
+                        folder,
+                        additional_filename,
+                    )
+
+                    with open(file_path) as f:
+                        data_json = json.load(f)
+
+                    main_workout = data_json.get("main_workout", {})
+                    cadence = main_workout.get("avg_cadence")
+                    avg_speed = main_workout.get("avg_speed", 0)
+                    if avg_speed:
+                        speed_kmh = avg_speed * 3.6
+                except (FileNotFoundError, json.JSONDecodeError, OSError):
+                    pass
+
+            cadence_list.append(cadence)
+            vitesse_kmh_list.append(speed_kmh)
+
+        running_exercises["cadence"] = cadence_list
+        running_exercises["vitesse_kmh"] = vitesse_kmh_list
+
+        # Calculer les stats globales
+        total_distance = running_exercises["distance_km"].sum()
+        total_duration = running_exercises["duration_min"].sum()
+        nb_courses = len(running_exercises)
+        avg_hr = running_exercises["heart_rate"].mean()
+        avg_allure = running_exercises["allure_min_par_km"].mean()
+        avg_cadence = running_exercises["cadence"].mean()
+
+        # Calculer l'allure moyenne au format mm:ss/km
+        avg_allure_min = int(avg_allure)
+        avg_allure_sec = int((avg_allure - avg_allure_min) * 60)
+        avg_allure_str = f"{avg_allure_min}:{avg_allure_sec:02d}/km"
+
+        # Afficher les stats dans des colonnes
+        cols = st.columns(5)
+
+        with cols[0]:
+            st.metric(
+                "📏 Distance totale",
+                f"{total_distance:.1f} km",
+            )
+
+        with cols[1]:
+            st.metric(
+                "🏃 Nombre de séances",
+                f"{nb_courses}",
+            )
+
+        with cols[2]:
+            st.metric(
+                "⏱️ Allure moy",
+                avg_allure_str,
+            )
+
+        with cols[3]:
+            st.metric(
+                "❤️ FC moy",
+                f"{avg_hr:.0f} bpm",
+            )
+
+        with cols[4]:
+            st.metric(
+                "👟 Cadence moy",
+                f"{avg_cadence:.0f} pas/min",
+            )
+
+        st.divider()
+
+        # === GRAPHIQUES D'ÉVOLUTION ===
+        st.subheader("📈 Évolution des séances")
+
+        # Nettoyer et reset l'index
+        running_exercises_clean = running_exercises.reset_index(drop=True).copy()
+
+        # Ajouter des indicateurs d'efficacité
+        running_exercises_clean["economie"] = running_exercises_clean.apply(
+            lambda r: r["distance_km"] / r["heart_rate"]
+            if r["heart_rate"] > 0
+            else None,
+            axis=1,
+        ).astype("float64")
+
+        running_exercises_clean["efficacite_energetique"] = (
+            running_exercises_clean.apply(
+                lambda r: r["distance_km"] / (r["heart_rate"] * r["duration_min"])
+                if (r["heart_rate"] > 0 and r["duration_min"] > 0)
+                else None,
+                axis=1,
+            ).astype("float64")
+        )
+
+        # Créer les graphiques
+        col1, col2 = st.columns(2)
+
+        with col1:
+            chart_distance = (
+                alt.Chart(running_exercises_clean)
+                .mark_line(point=True)
+                .encode(
+                    x=alt.X("date:T", title="Date"),
+                    y=alt.Y("distance_km:Q", title="Distance (km)"),
+                    color=alt.value("#e74c3c"),
+                )
+                .properties(height=300, title="📏 Distance par séance")
+                .interactive()
+            )
+            st.altair_chart(chart_distance, use_container_width=True)
+
+        with col2:
+            chart_allure = (
+                alt.Chart(running_exercises_clean)
+                .mark_line(point=True)
+                .encode(
+                    x=alt.X("date:T", title="Date"),
+                    y=alt.Y(
+                        "allure_min_par_km:Q",
+                        title="Allure (min/km)",
+                    ),
+                    color=alt.value("#3498db"),
+                )
+                .properties(height=300, title="⏱️ Allure par séance")
+                .interactive()
+            )
+            st.altair_chart(chart_allure, use_container_width=True)
+
+        col3, col4 = st.columns(2)
+
+        with col3:
+            chart_hr = (
+                alt.Chart(running_exercises_clean)
+                .mark_line(point=True)
+                .encode(
+                    x=alt.X("date:T", title="Date"),
+                    y=alt.Y("heart_rate:Q", title="FC moy (bpm)"),
+                    color=alt.value("#c0392b"),
+                )
+                .properties(height=300, title="❤️ Fréquence cardiaque")
+                .interactive()
+            )
+            st.altair_chart(chart_hr, use_container_width=True)
+
+        with col4:
+            running_cadence = running_exercises_clean.dropna(subset=["cadence"])
+            if len(running_cadence) > 0:
+                chart_cadence = (
+                    alt.Chart(running_cadence)
+                    .mark_line(point=True)
+                    .encode(
+                        x=alt.X("date:T", title="Date"),
+                        y=alt.Y("cadence:Q", title="Cadence (pas/min)"),
+                        color=alt.value("#9b59b6"),
+                    )
+                    .properties(height=300, title="👟 Cadence")
+                    .interactive()
+                )
+                st.altair_chart(chart_cadence, use_container_width=True)
+            else:
+                st.info("Pas de données de cadence disponibles")

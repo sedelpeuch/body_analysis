@@ -282,6 +282,10 @@ def load_exercise_df(exercise_csv_path: str) -> list[dict]:
                             "com.samsung.health.exercise.additional",
                             "",
                         )
+                        rec["location"] = r.get(
+                            "com.samsung.health.exercise.location_data",
+                            "",
+                        )
 
         if rec:
             out.append(rec)
