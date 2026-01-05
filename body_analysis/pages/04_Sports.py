@@ -1,11 +1,20 @@
 import json
 import logging
+import os
 
 import altair as alt
 import pandas as pd
 import streamlit as st
 
 from body_analysis.data_ingestion import find_data_files, load_exercise_df
+
+ENV = os.environ.get("ENV", "dev")
+if ENV == "production":
+    DATA_DIR_DEFAULT = "/app/data"
+else:
+    DATA_DIR_DEFAULT = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "data"),
+    )
 
 st.title("Analyse des sports")
 
@@ -671,3 +680,514 @@ if selected_sport in SPORTS_ALT:
             )
         else:
             st.info("Aucun point GPS disponible pour ce sport.")
+
+# Données additionnelles pour la natation
+if selected_sport == "Natation":
+    st.markdown("---")
+    st.markdown("## Statistiques par nage")
+
+    # Charger et analyser les données JSON pour les statistiques
+    if not df_sport.empty and "additionnal" in df_sport.columns:
+        df_with_additional = df_sport[df_sport["additionnal"].notna()].copy()
+        st.subheader("Évolution de la vitesse par nage")
+
+        # Collecter les données pour le graphique
+        speed_evolution_data = []
+        session_counter = {}
+
+        for _, row in df_with_additional.iterrows():
+            filename = row.get("additionnal")
+            if filename:
+                folder = filename[0].lower()
+                file_path = os.path.join(
+                    DATA_DIR_DEFAULT,
+                    "com.samsung.shealth.exercise",
+                    folder,
+                    filename,
+                )
+
+                try:
+                    with open(file_path) as f:
+                        data_json = json.load(f)
+
+                    pool_length = data_json.get("pool_length", 25)
+                    lengths = data_json.get("lengths", [])
+
+                    for length in lengths:
+                        stroke_type = length.get("stroke_type", "Unknown")
+                        duration_ms = length.get("duration", 0)
+                        duration_sec = duration_ms / 1000
+
+                        # Calcul de la vitesse en min/sec pour 100m
+                        if duration_sec > 0:
+                            time_per_100m = (duration_sec / pool_length) * 100
+                            time_100m_min = int(time_per_100m // 60)
+                            time_100m_sec = int(time_per_100m % 60)
+                            time_100m_display = f"{time_100m_min}:{time_100m_sec:02d}"
+
+                            # Incrémenter le compteur de session pour ce type de nage
+                            if stroke_type not in session_counter:
+                                session_counter[stroke_type] = 0
+                            session_counter[stroke_type] += 1
+
+                            # Récupérer la FC moyenne
+                            heart_rate = length.get(
+                                "heart_rate",
+                                row.get("heart_rate", None),
+                            )
+
+                            speed_evolution_data.append(
+                                {
+                                    "Nage": stroke_type,
+                                    "Numéro de longueur": (
+                                        session_counter[stroke_type]
+                                    ),
+                                    "Temps pour 100m (secondes)": (time_per_100m),
+                                    "Temps pour 100m": time_100m_display,
+                                    "Date": (
+                                        row.get("date")
+                                        if "date" in row.index
+                                        else pd.Timestamp.now()
+                                    ),
+                                    "FC": heart_rate,
+                                    "Duration (s)": duration_sec,
+                                    "Pool Length": pool_length,
+                                },
+                            )
+                except (FileNotFoundError, json.JSONDecodeError, OSError):
+                    pass
+
+        if speed_evolution_data:
+            df_speed = pd.DataFrame(speed_evolution_data)
+
+            # Dictionnaire des emojis par type de nage
+            stroke_emojis_chart = {
+                "Freestyle": "🏊",
+                "Breaststroke": "🏊‍♂️",
+                "Butterfly": "🦋",
+                "Backstroke": "🔙",
+                "Individual Medley": "🎯",
+            }
+
+            # --- SECTION STATISTIQUES GÉNÉRALES ---
+            st.subheader("📊 Statistiques générales par nage")
+
+            # Convertir en DataFrame
+            df_speed = pd.DataFrame(speed_evolution_data)
+
+            # Emojis par nage
+            stroke_emojis = {
+                "Freestyle": "🏊",
+                "Breaststroke": "🏊‍♂️",
+                "Butterfly": "🦋",
+                "Backstroke": "🔙",
+                "Individual Medley": "🎯",
+            }
+
+            # Créer des colonnes pour les cartes
+            stroke_list = sorted(df_speed["Nage"].unique())
+            cols = st.columns(min(2, len(stroke_list)))
+
+            # Grouper par nage et calculer les stats
+            for idx, stroke_type in enumerate(stroke_list):
+                df_stroke_data = df_speed[df_speed["Nage"] == stroke_type]
+                emoji = stroke_emojis.get(stroke_type, "🏊")
+
+                # Calcul des statistiques
+                total_time_sec = (
+                    df_stroke_data["Temps pour 100m (secondes)"].sum() / 100 * 25
+                )
+                total_km = len(df_stroke_data) * 0.025
+                avg_time_per_100m_sec = df_stroke_data[
+                    "Temps pour 100m (secondes)"
+                ].mean()
+                total_time_min = total_time_sec / 60
+
+                # Format mm:ss/100m
+                avg_time_per_100m_min = int(
+                    avg_time_per_100m_sec // 60,
+                )
+                avg_time_per_100m_sec_remainder = int(
+                    avg_time_per_100m_sec % 60,
+                )
+                time_format = (
+                    f"{avg_time_per_100m_min}:"
+                    f"{avg_time_per_100m_sec_remainder:02d}/100m"
+                )
+
+                # SWOLF au 50m
+                swolf_50m_values = []
+                for _, row in df_stroke_data.iterrows():
+                    time_100m = row["Temps pour 100m (secondes)"]
+                    time_50m = time_100m / 2
+                    swolf_50m_values.append(time_50m)
+
+                swolf_50m = (
+                    sum(swolf_50m_values) / len(swolf_50m_values)
+                    if swolf_50m_values
+                    else None
+                )
+
+                # Calcul des 3 indicateurs
+                fc_values = [x for x in df_stroke_data["FC"].values if pd.notna(x)]
+                avg_heart_rate = (
+                    (sum(fc_values) / len(fc_values)) if fc_values else None
+                )
+
+                vitesse_ms = (
+                    (
+                        df_stroke_data["Pool Length"].iloc[0]
+                        / df_stroke_data["Duration (s)"].mean()
+                    )
+                    if len(df_stroke_data) > 0
+                    else 0
+                )
+
+                cout_cardiaque = (
+                    (avg_heart_rate / vitesse_ms)
+                    if avg_heart_rate and vitesse_ms > 0
+                    else None
+                )
+
+                distance_par_battement = (
+                    (vitesse_ms / (avg_heart_rate / 60))
+                    if avg_heart_rate and avg_heart_rate > 0
+                    else None
+                )
+
+                # 4️⃣ Score d'Efficacité Natation (SEN)
+                indice_economie = (
+                    (vitesse_ms**2 / avg_heart_rate)
+                    if avg_heart_rate and vitesse_ms > 0
+                    else None
+                )
+
+                # Afficher la carte dans la colonne
+                col = cols[idx % len(cols)]
+                with col:
+                    st.markdown(
+                        f"""
+                        <div class="metric-card"
+                            style="border-left: 4px solid #667eea;
+                            padding: 12px; min-height: auto;">
+                            <div style="font-size: 16px;
+                                font-weight: bold;
+                                color: #667eea;
+                                margin-bottom: 10px;">
+                                {emoji} {stroke_type}
+                            </div>
+                            <div style="display: grid;
+                                grid-template-columns: 1fr 1fr;
+                                gap: 8px;
+                                font-size: 13px;">
+                                <div>
+                                    <div style="font-size: 11px;
+                                        color: #999;
+                                        margin-bottom: 3px;">
+                                        ⏱️ Temps/100m
+                                    </div>
+                                    <div style="font-size: 16px;
+                                        font-weight: bold;
+                                        color: #667eea;">
+                                        {time_format}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 11px;
+                                        color: #999;
+                                        margin-bottom: 3px;">
+                                        🎯 SWOLF/50m
+                                    </div>
+                                    <div style="font-size: 16px;
+                                        font-weight: bold;
+                                        color: #e74c3c;">
+                                        {
+                            (safe_fmt(swolf_50m, ".1f") if swolf_50m else "-")
+                        }
+                                    </div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 11px;
+                                        color: #999;
+                                        margin-bottom: 3px;">
+                                        ⏱️ Durée
+                                    </div>
+                                    <div style="font-size: 16px;
+                                        font-weight: bold;
+                                        color: #2ca02c;">
+                                        {safe_fmt(total_time_min, ".0f")} min
+                                    </div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 11px;
+                                        color: #999;
+                                        margin-bottom: 3px;">
+                                        📏 Distance
+                                    </div>
+                                    <div style="font-size: 16px;
+                                        font-weight: bold;
+                                        color: #1f77b4;">
+                                        {safe_fmt(total_km, ".2f")} km
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+            st.markdown("---")
+
+            # Graphiques d'évolution des indicateurs par nage
+            st.subheader("📈 Évolution des indicateurs par nage")
+
+            for stroke_type in sorted(df_speed["Nage"].unique()):
+                df_stroke_data = df_speed[df_speed["Nage"] == stroke_type].copy()
+                stroke_emojis = {
+                    "Freestyle": "🏊",
+                    "Breaststroke": "🏊‍♂️",
+                    "Butterfly": "🦋",
+                    "Backstroke": "🔙",
+                    "Individual Medley": "🎯",
+                }
+                emoji = stroke_emojis.get(stroke_type, "🏊")
+
+                # Calculer les indicateurs pour chaque longueur
+                fc_values = [x for x in df_stroke_data["FC"].to_numpy() if pd.notna(x)]
+                if not fc_values:
+                    continue
+
+                # Ajouter les indicateurs au dataframe
+                df_stroke_data = df_stroke_data.copy()
+                df_stroke_data["FC_numeric"] = (df_stroke_data["FC"]).astype(float)
+
+                # Vitesse en m/s pour chaque longueur
+                df_stroke_data["Vitesse_ms"] = (
+                    df_stroke_data["Pool Length"] / df_stroke_data["Duration (s)"]
+                )
+
+                # Coût cardiaque
+                df_stroke_data["Cout_cardiaque"] = (
+                    df_stroke_data["FC_numeric"] / df_stroke_data["Vitesse_ms"]
+                )
+
+                # Distance par battement
+                df_stroke_data["Distance_par_battement"] = df_stroke_data[
+                    "Vitesse_ms"
+                ] / (df_stroke_data["FC_numeric"] / 60)
+
+                # Indice d'économie (approx par longueur)
+                df_stroke_data["Indice_economie"] = (
+                    df_stroke_data["Vitesse_ms"] ** 2
+                ) / df_stroke_data["FC_numeric"]
+
+                # Créer un expander pour afficher les graphiques au clic
+                with st.expander(f"{emoji} {stroke_type} - Indicateurs détaillés"):
+                    # Créer 4 graphiques : 2 à 2
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+                        base_cout = alt.Chart(df_stroke_data).encode(
+                            x=alt.X(
+                                "Numéro de longueur:Q",
+                                title="Longueur",
+                            ),
+                        )
+                        chart_cout_line = base_cout.mark_line(point=True).encode(
+                            y=alt.Y(
+                                "Cout_cardiaque:Q",
+                                title=("Coût cardiaque (bpm/m/s)"),
+                            ),
+                            color=alt.value("#764ba2"),
+                            tooltip=[
+                                alt.Tooltip(
+                                    "Numéro de longueur:Q",
+                                    title="Longueur",
+                                ),
+                                alt.Tooltip(
+                                    "Cout_cardiaque:Q",
+                                    title="Coût card.",
+                                    format=".2f",
+                                ),
+                                alt.Tooltip(
+                                    "FC_numeric:Q",
+                                    title="FC",
+                                    format=".0f",
+                                ),
+                            ],
+                        )
+                        chart_cout_trend = (
+                            base_cout.transform_regression(
+                                "Numéro de longueur",
+                                "Cout_cardiaque",
+                            )
+                            .mark_line(size=3, opacity=0.8)
+                            .encode(
+                                y=alt.Y("Cout_cardiaque:Q"),
+                                color=alt.value("#ffffff"),
+                            )
+                        )
+                        chart_cout = (
+                            (chart_cout_line + chart_cout_trend)
+                            .properties(
+                                height=300,
+                                title=("2️⃣ Coût cardiaque ↓"),
+                            )
+                            .interactive()
+                        )
+                        st.altair_chart(chart_cout, use_container_width=True)
+
+                    with col2:
+                        base_dist = alt.Chart(df_stroke_data).encode(
+                            x=alt.X(
+                                "Numéro de longueur:Q",
+                                title="Longueur",
+                            ),
+                        )
+                        chart_dist_line = base_dist.mark_line(point=True).encode(
+                            y=alt.Y(
+                                "Distance_par_battement:Q",
+                                title=("Distance/battement (m/batt)"),
+                            ),
+                            color=alt.value("#fd7e14"),
+                            tooltip=[
+                                alt.Tooltip(
+                                    "Numéro de longueur:Q",
+                                    title="Longueur",
+                                ),
+                                alt.Tooltip(
+                                    "Distance_par_battement:Q",
+                                    title="Dist/batt",
+                                    format=".3f",
+                                ),
+                                alt.Tooltip(
+                                    "FC_numeric:Q",
+                                    title="FC",
+                                    format=".0f",
+                                ),
+                            ],
+                        )
+                        chart_dist_trend = (
+                            base_dist.transform_regression(
+                                "Numéro de longueur",
+                                "Distance_par_battement",
+                            )
+                            .mark_line(size=3, opacity=0.8)
+                            .encode(
+                                y=alt.Y("Distance_par_battement:Q"),
+                                color=alt.value("#ffffff"),
+                            )
+                        )
+                        chart_dist = (
+                            (chart_dist_line + chart_dist_trend)
+                            .properties(
+                                height=300,
+                                title=("3️⃣ Distance/battement ↑"),
+                            )
+                            .interactive()
+                        )
+                        st.altair_chart(chart_dist, use_container_width=True)
+
+                    col3, col4 = st.columns(2)
+
+                    with col3:
+                        base_eco = alt.Chart(df_stroke_data).encode(
+                            x=alt.X(
+                                "Numéro de longueur:Q",
+                                title="Longueur",
+                            ),
+                        )
+                        chart_eco_line = base_eco.mark_line(point=True).encode(
+                            y=alt.Y(
+                                "Indice_economie:Q",
+                                title=("SEN (Vitesse²/FC) ↑"),
+                            ),
+                            color=alt.value("#20c997"),
+                            tooltip=[
+                                alt.Tooltip(
+                                    "Numéro de longueur:Q",
+                                    title="Longueur",
+                                ),
+                                alt.Tooltip(
+                                    "Indice_economie:Q",
+                                    title="SEN",
+                                    format=".2f",
+                                ),
+                                alt.Tooltip(
+                                    "FC_numeric:Q",
+                                    title="FC",
+                                    format=".0f",
+                                ),
+                            ],
+                        )
+                        chart_eco_trend = (
+                            base_eco.transform_regression(
+                                "Numéro de longueur",
+                                "Indice_economie",
+                            )
+                            .mark_line(size=3, opacity=0.8)
+                            .encode(
+                                y=alt.Y("Indice_economie:Q"),
+                                color=alt.value("#ffffff"),
+                            )
+                        )
+                        chart_eco = (
+                            (chart_eco_line + chart_eco_trend)
+                            .properties(
+                                height=300,
+                                title=("4️⃣ SEN (Score Efficacité) ↑"),
+                            )
+                            .interactive()
+                        )
+                        st.altair_chart(chart_eco, use_container_width=True)
+
+                    with col4:
+                        base_vitesse = alt.Chart(df_stroke_data).encode(
+                            x=alt.X(
+                                "Numéro de longueur:Q",
+                                title="Longueur",
+                            ),
+                        )
+                        chart_vitesse_line = base_vitesse.mark_line(point=True).encode(
+                            y=alt.Y(
+                                "Vitesse_ms:Q",
+                                title=("Vitesse (m/s) ↑"),
+                            ),
+                            color=alt.value("#1f77b4"),
+                            tooltip=[
+                                alt.Tooltip(
+                                    "Numéro de longueur:Q",
+                                    title="Longueur",
+                                ),
+                                alt.Tooltip(
+                                    "Vitesse_ms:Q",
+                                    title="Vitesse",
+                                    format=".2f",
+                                ),
+                                alt.Tooltip(
+                                    "Duration (s):Q",
+                                    title="Durée (s)",
+                                    format=".1f",
+                                ),
+                            ],
+                        )
+                        chart_vitesse_trend = (
+                            base_vitesse.transform_regression(
+                                "Numéro de longueur",
+                                "Vitesse_ms",
+                            )
+                            .mark_line(size=3, opacity=0.8)
+                            .encode(
+                                y=alt.Y("Vitesse_ms:Q"),
+                                color=alt.value("#ffffff"),
+                            )
+                        )
+                        chart_vitesse = (
+                            (chart_vitesse_line + chart_vitesse_trend)
+                            .properties(
+                                height=300,
+                                title=("⚡ Vitesse"),
+                            )
+                            .interactive()
+                        )
+                        st.altair_chart(chart_vitesse, use_container_width=True)
