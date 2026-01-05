@@ -278,6 +278,10 @@ def load_exercise_df(exercise_csv_path: str) -> list[dict]:
                         rec["altitude_loss"] = _to_float(
                             r.get("com.samsung.health.exercise.altitude_loss"),
                         )
+                        rec["additionnal"] = r.get(
+                            "com.samsung.health.exercise.additional",
+                            "",
+                        )
 
         if rec:
             out.append(rec)
