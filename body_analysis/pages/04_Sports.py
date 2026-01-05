@@ -7,6 +7,19 @@ import pandas as pd
 import streamlit as st
 
 from body_analysis.data_ingestion import find_data_files, load_exercise_df
+from body_analysis.sports_utils import (
+    COLORS,
+    CSS_STYLES,
+    SPORT_EMOJI,
+    SPORTS_MAP,
+    create_bar_chart,
+    create_heatmap_chart,
+    detect_sport,
+    prepare_heatmap_data,
+    render_metric_card,
+    safe_div,
+    safe_fmt,
+)
 
 ENV = os.environ.get("ENV", "dev")
 if ENV == "production":
@@ -15,6 +28,8 @@ else:
     DATA_DIR_DEFAULT = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "..", "..", "data"),
     )
+
+logger = logging.getLogger(__name__)
 
 st.title("Analyse des sports")
 
@@ -26,89 +41,6 @@ if not paths.exercise_csv:
 
 rows = load_exercise_df(paths.exercise_csv)
 df = pd.DataFrame(rows)
-
-# Dictionnaire de correspondance des sports
-SPORTS_MAP = {
-    0: "Marche",
-    1001: "Marche",
-    1002: "Course à pied",
-    11007: "Vélo",
-    13001: "Randonnée",
-    14001: "Natation",
-    15004: "Rameur",
-    10025: "Poids du corps",
-}
-
-logger = logging.getLogger(__name__)
-
-
-def safe_fmt(val: float | None, fmt: str, default: str = "-") -> str:
-    """Format a value safely.
-
-    Returns default if value is None or formatting fails.
-
-    Args:
-        val: Value to format (float or None).
-        fmt: Format string (e.g. '.0f').
-        default: Value to return if formatting fails.
-
-    Returns:
-        Formatted string or default.
-
-    """
-    if val is not None:
-        try:
-            return format(val, fmt)
-        except (ValueError, TypeError) as exc:
-            logger.warning("safe_fmt error: %s", exc)
-    return default
-
-
-def safe_div(val: float | None, div: float | None, fmt: str, default: str = "-") -> str:
-    """Safely divide val by div and format.
-
-    Returns default if error or missing value.
-
-    Args:
-        val: Numerator (float or None).
-        div: Denominator (float or None).
-        fmt: Format string (e.g. '.0f').
-        default: Value to return if division/formatting fails.
-
-    Returns:
-        Formatted string or default.
-
-    """
-    if val is not None and div:
-        try:
-            return format(val / div, fmt)
-        except (ZeroDivisionError, ValueError, TypeError) as exc:
-            logger.warning("safe_div error: %s", exc)
-    return default
-
-
-def detect_sport(row):
-    code = row.get("exercise_type")
-    subset_data = row.get("subset_data")
-    # Si subset_data ressemble à une liste de dicts avec 'reps', c'est musculation
-    if subset_data:
-        try:
-            val = (
-                json.loads(subset_data) if isinstance(subset_data, str) else subset_data
-            )
-            if (
-                isinstance(val, list)
-                and val
-                and isinstance(val[0], dict)
-                and "reps" in val[0]
-            ):
-                return "Musculation"
-        except Exception:
-            pass
-    # Sinon, utiliser le mapping
-    if code in SPORTS_MAP:
-        return SPORTS_MAP[code]
-    return str(code) if code is not None else "?"
 
 
 # Ajouter une colonne avec le nom du sport
@@ -124,84 +56,8 @@ df_known = df[df["sport"].isin(known_sports)]
 sport_titles = ["Tous les entraînements"] + sorted(df_known["sport"].unique())
 
 
-# Style CSS pour les cards
-st.markdown(
-    """
-<style>
-    .sport-card {
-        background: rgba(102, 126, 234, 0.05);
-        padding: 18px;
-        border-radius: 12px;
-        border: 2px solid rgba(102, 126, 234, 0.18);
-        margin: 8px 0;
-        transition: all 0.3s ease;
-        text-align: center;
-        cursor: pointer;
-        font-size: 18px;
-        font-weight: 500;
-        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.08);
-    }
-    .sport-card.selected {
-        border-color: #667eea;
-        background: rgba(102, 126, 234, 0.12);
-        box-shadow: 0 4px 16px rgba(102, 126, 234, 0.18);
-    }
-    .sport-emoji {
-        font-size: 32px;
-        margin-bottom: 8px;
-        display: block;
-    }
-    .metric-card {
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
-        padding: 20px;
-        border-radius: 12px;
-        border: 1px solid rgba(102, 126, 234, 0.2);
-        text-align: center;
-        margin: 10px 0;
-        min-height: 280px;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-    }
-    .metric-value {
-        font-size: 32px;
-        font-weight: bold;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
-    .metric-label {
-        font-size: 14px;
-        color: #999;
-        margin-top: 5px;
-    }
-    .sub-metric {
-        font-size: 14px;
-        color: #666;
-        margin-top: 8px;
-        padding: 5px 10px;
-        background: rgba(102, 126, 234, 0.05);
-        border-radius: 8px;
-        display: inline-block;
-    }
-</style>
-""",
-    unsafe_allow_html=True,
-)
-
-# Emoji par sport
-SPORT_EMOJI = {
-    "Marche": "🚶",
-    "Course à pied": "🏃",
-    "Vélo": "🚴",
-    "Randonnée": "🥾",
-    "Natation": "🏊",
-    "Rameur": "🚣",
-    "Poids du corps": "💪",
-    "Musculation": "🏋️",
-    "Tous les entraînements": "📊",
-}
+# Appliquer les styles CSS
+st.markdown(CSS_STYLES, unsafe_allow_html=True)
 
 st.markdown("### Sélectionner un sport")
 if "selected_sport_idx" not in st.session_state:
@@ -280,43 +136,10 @@ df_sport = df_sport[
 st.markdown("---")
 st.header("Calendrier des entraînements")
 
-# On part du DataFrame filtré (df_sport)
 if not df_sport.empty and "date" in df_sport:
-    df_heat = df_sport.copy()
-    df_heat["date"] = pd.to_datetime(df_heat["date"])
-    df_heat["date_jour"] = df_heat["date"].dt.date
-    # On compte le nombre de séances par jour (sans tenir compte des heures/minutes/secondes)
-    df_heatmap = df_heat.groupby("date_jour").size().reset_index(name="nb_seances")
-    df_heatmap["date"] = pd.to_datetime(df_heatmap["date_jour"])
-    df_heatmap["day"] = df_heatmap["date"].dt.day
-    df_heatmap["month"] = df_heatmap["date"].dt.month
-    df_heatmap["weekday"] = df_heatmap["date"].dt.dayofweek
-    df_heatmap["week"] = df_heatmap["date"].dt.isocalendar().week
-
+    df_heatmap = prepare_heatmap_data(df_sport)
     if not df_heatmap.empty:
-        heatmap = (
-            alt.Chart(df_heatmap)
-            .mark_rect()
-            .encode(
-                x=alt.X("week:O", title="Semaine", axis=alt.Axis(labelAngle=0)),
-                y=alt.Y(
-                    "weekday:O",
-                    title="Jour",
-                    axis=alt.Axis(
-                        labelExpr="['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'][datum.value]",
-                    ),
-                ),
-                color=alt.Color(
-                    "nb_seances:Q",
-                    scale=alt.Scale(scheme="blues"),
-                    legend=alt.Legend(title="Séances"),
-                ),
-                tooltip=[
-                    alt.Tooltip("date:T", title="Date", format="%d/%m/%Y"),
-                    alt.Tooltip("nb_seances:Q", title="Séances", format=".0f"),
-                ],
-            )
-        )
+        heatmap = create_heatmap_chart(df_heatmap)
         st.altair_chart(heatmap.properties(height=200), use_container_width=True)
     else:
         st.info("Aucune séance pour la période sélectionnée.")
@@ -372,84 +195,83 @@ col4, col5 = st.columns(2)
 
 with col1:
     st.markdown(
-        f"""
-        <div class="metric-card" style="border-left: 4px solid #667eea;">
-            <div style="font-size: 16px; font-weight: bold; color: #999; margin-bottom: 10px;">⏱️ Durée totale</div>
-            <div class="metric-value" style="color: #667eea;">{safe_div(duree_totale, 60, ".0f")} h</div>
-            <div class='sub-metric'>⏱️ {safe_div(duree_totale, nb_seances, ".0f")} min/séance</div>
-        </div>
-        """,
+        render_metric_card(
+            "Durée totale",
+            "⏱️",
+            f"{safe_div(duree_totale, 60, '.0f')} h",
+            f"⏱️ {safe_div(duree_totale, nb_seances, '.0f')} min/séance",
+            COLORS["duration"],
+        ),
         unsafe_allow_html=True,
     )
+
 with col2:
     st.markdown(
-        f"""
-        <div class="metric-card" style="border-left: 4px solid #FF8C00;">
-            <div style="font-size: 16px; font-weight: bold; color: #999; margin-bottom: 10px;">🔥 Calories totales</div>
-            <div class="metric-value" style="color: #FF8C00;">{safe_fmt(calories_totales, ".0f")} kcal</div>
-            <div class='sub-metric'>🔥 {safe_div(calories_totales, nb_seances, ".0f")} kcal/séance</div>
-        </div>
-        """,
+        render_metric_card(
+            "Calories totales",
+            "🔥",
+            f"{safe_fmt(calories_totales, '.0f')} kcal",
+            f"🔥 {safe_div(calories_totales, nb_seances, '.0f')} kcal/séance",
+            COLORS["calories"],
+        ),
         unsafe_allow_html=True,
     )
+
 with col3:
     st.markdown(
-        f"""
-        <div class="metric-card" style="border-left: 4px solid #2ca02c;">
-            <div style="font-size: 16px; font-weight: bold; color: #999; margin-bottom: 10px;">📏 Distance totale</div>
-            <div class="metric-value" style="color: #2ca02c;">{safe_fmt(distance_totale, ".1f")} km</div>
-            <div class='sub-metric'>📏 {safe_div(distance_totale, nb_seances, ".2f")} km/séance</div>
-        </div>
-        """,
+        render_metric_card(
+            "Distance totale",
+            "📏",
+            f"{safe_fmt(distance_totale, '.1f')} km",
+            f"📏 {safe_div(distance_totale, nb_seances, '.2f')} km/séance",
+            COLORS["distance"],
+        ),
         unsafe_allow_html=True,
     )
 
 with col4:
     st.markdown(
-        f"""
-        <div class="metric-card" style="border-left: 4px solid #e74c3c;">
-            <div style="font-size: 16px; font-weight: bold; color: #999; margin-bottom: 10px;">❤️ Fréquence cardiaque</div>
-            <div class="metric-value" style="color: #e74c3c;">{safe_div(heart_rate_avg, nb_seances, ".0f")} bpm</div>
-            <div class='sub-metric'>❤️ {safe_div(heart_rate_min, nb_seances, ".0f")} | {safe_div(heart_rate_max, nb_seances, ".0f")} bpm</div>
-        </div>
-        """,
+        render_metric_card(
+            "Fréquence cardiaque",
+            "❤️",
+            f"{safe_div(heart_rate_avg, nb_seances, '.0f')} bpm",
+            (
+                f"❤️ {safe_div(heart_rate_min, nb_seances, '.0f')} | "
+                f"{safe_div(heart_rate_max, nb_seances, '.0f')} bpm"
+            ),
+            COLORS["heart_rate"],
+        ),
         unsafe_allow_html=True,
     )
 
-# Card vitesse moyenne
 with col5:
     st.markdown(
-        f"""
-        <div class="metric-card" style="border-left: 4px solid #1f77b4;">
-            <div style="font-size: 16px; font-weight: bold; color: #999; margin-bottom: 10px;">🚀 Vitesse moyenne</div>
-            <div class="metric-value" style="color: #1f77b4;">{safe_fmt(vitesse_moyenne, ".2f") if vitesse_moyenne else "-"} km/h</div>
-            <div class='sub-metric'>🚀</div>
-        </div>
-        """,
+        render_metric_card(
+            "Vitesse moyenne",
+            "🚀",
+            f"{safe_fmt(vitesse_moyenne, '.2f') if vitesse_moyenne else '-'} km/h",
+            "🚀",
+            COLORS["speed"],
+        ),
         unsafe_allow_html=True,
     )
 
 st.markdown("---")
 st.markdown("## Évolution des séances")
 
-# Afficher les graphiques côte à côte
 col_a, col_b = st.columns(2)
 
 with col_a:
     st.subheader("Calories brûlées")
-    alt_chart = (
-        alt.Chart(df_sport)
-        .mark_bar()
-        .encode(
-            x=alt.X("date", title="Date"),
-            y=alt.Y("calorie", title="Calories brûlées"),
-            tooltip=[
-                alt.Tooltip("date:T", title="Date"),
-                alt.Tooltip("calorie:Q", title="Calories brûlées"),
-            ],
-        )
+    chart_calories = create_bar_chart(
+        df_sport,
+        "date",
+        "calorie",
+        "🔥 Calories brûlées",
+        COLORS["calories"],
+        "Calories brûlées",
     )
-    st.altair_chart(alt_chart, use_container_width=True)
+    st.altair_chart(chart_calories, use_container_width=True)
 
 with col_b:
     st.subheader("Durée des séances")
@@ -457,47 +279,39 @@ with col_b:
     df_sport_minutes["duration_min"] = (
         df_sport_minutes["duration"].astype(float) / 1000 / 60
     )
-    alt_chart_duree = (
-        alt.Chart(df_sport_minutes)
-        .mark_bar(color="orange")
-        .encode(
-            x=alt.X("date", title="Date"),
-            y=alt.Y("duration_min", title="Durée (min)"),
-            tooltip=[
-                alt.Tooltip("date:T", title="Date"),
-                alt.Tooltip("duration_min:Q", title="Durée (min)"),
-            ],
-        )
+    chart_duration = create_bar_chart(
+        df_sport_minutes,
+        "date",
+        "duration_min",
+        "⏱️ Durée des séances",
+        COLORS["duration"],
+        "Durée (min)",
     )
-    st.altair_chart(alt_chart_duree, use_container_width=True)
+    st.altair_chart(chart_duration, use_container_width=True)
 
 col_a, col_b = st.columns(2)
 
 with col_a:
     if distance_totale is not None:
         st.subheader("Distance parcourue")
-        alt_chart_dist = (
-            alt.Chart(df_sport)
-            .mark_bar(color="green")
-            .encode(
-                x=alt.X("date", title="Date"),
-                y=alt.Y("distance", title="Distance (m)"),
-                tooltip=[
-                    alt.Tooltip("date:T", title="Date"),
-                    alt.Tooltip("distance:Q", title="Distance (m)"),
-                ],
-            )
+        chart_dist = create_bar_chart(
+            df_sport,
+            "date",
+            "distance",
+            "📏 Distance parcourue",
+            COLORS["distance"],
+            "Distance (m)",
         )
-        st.altair_chart(alt_chart_dist, use_container_width=True)
+        st.altair_chart(chart_dist, use_container_width=True)
     else:
         st.info("Les données de distance ne sont pas disponibles pour ce sport.")
 
 with col_b:
     if heart_rate_avg is not None:
         st.subheader("Fréquence cardiaque")
-        alt_chart_hr = (
+        chart_hr = (
             alt.Chart(df_sport)
-            .mark_bar(color="red")
+            .mark_bar(color=COLORS["heart_rate"])
             .encode(
                 x=alt.X("date", title="Date"),
                 y=alt.Y("heart_rate", title="Fréquence cardiaque (bpm)"),
@@ -507,7 +321,7 @@ with col_b:
                 ],
             )
         )
-        st.altair_chart(alt_chart_hr, use_container_width=True)
+        st.altair_chart(chart_hr, use_container_width=True)
     else:
         st.info(
             "Les données de fréquence cardiaque ne sont pas disponibles pour ce sport.",
@@ -516,14 +330,13 @@ with col_b:
 # Graphique de vitesse par séance
 if "distance" in df_sport and "duration" in df_sport:
     df_vitesse = df_sport.copy()
-    # Vitesse en km/h par séance
     df_vitesse["vitesse_kmh"] = (df_vitesse["distance"].astype(float) / 1000) / (
         df_vitesse["duration"].astype(float) / 1000 / 60 / 60
     )
     st.subheader("Vitesse par séance (km/h)")
-    alt_chart_vitesse = (
+    chart_vitesse = (
         alt.Chart(df_vitesse)
-        .mark_line(color="#1f77b4")
+        .mark_line(color=COLORS["speed"])
         .encode(
             x=alt.X("date", title="Date"),
             y=alt.Y("vitesse_kmh", title="Vitesse (km/h)", scale=alt.Scale(zero=False)),
@@ -532,8 +345,10 @@ if "distance" in df_sport and "duration" in df_sport:
                 alt.Tooltip("vitesse_kmh:Q", title="Vitesse (km/h)"),
             ],
         )
+        .properties(height=300, title="🚀 Vitesse par séance")
+        .interactive()
     )
-    st.altair_chart(alt_chart_vitesse, use_container_width=True)
+    st.altair_chart(chart_vitesse, use_container_width=True)
 
 st.markdown("---")
 st.markdown("# Records")
