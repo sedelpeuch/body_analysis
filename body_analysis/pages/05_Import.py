@@ -36,6 +36,12 @@ def _cleanup_old_csv_files(data_dir: str) -> None:
         matching_files = []
         for file in os.listdir(data_dir):
             if file.endswith(".csv") and pattern in file:
+                # Pour l'exercice, valider que c'est le bon format
+                if csv_type == "exercise":
+                    # Doit être: com.samsung.shealth.exercise.YYYYMMDDHHMMSS.csv
+                    if not re.match(r"com\.samsung\.shealth\.exercise\.\d{14}\.csv$", file):
+                        continue
+
                 file_path = os.path.join(data_dir, file)
                 matching_files.append((file, file_path))
 
@@ -113,6 +119,14 @@ if zip_file:
                             # Vérifier si c'est un fichier pertinent
                             for pattern in csv_patterns:
                                 if pattern in file:
+                                    # Pour l'exercice, valider le format exact
+                                    if pattern == "com.samsung.shealth.exercise":
+                                        if not re.match(
+                                            r"com\.samsung\.shealth\.exercise\.\d{14}\.csv$",
+                                            file,
+                                        ):
+                                            break
+
                                     dest_path = os.path.join(DATA_DIR, file)
                                     shutil.copy2(file_path, dest_path)
                                     extracted_files.append(file)

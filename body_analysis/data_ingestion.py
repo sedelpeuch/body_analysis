@@ -37,9 +37,16 @@ def find_data_files(data_dir: str | None = None) -> DataPaths:
     food_matches = glob.glob(
         os.path.join(data_dir, "com.samsung.health.food_intake.*.csv"),
     )
-    exercise_matches = glob.glob(
+
+    # Pour l'exercice, filtrer pour le format exact: com.samsung.shealth.exercise.YYYYMMDDHHMMSS.csv
+    exercise_all = glob.glob(
         os.path.join(data_dir, "com.samsung.shealth.exercise.*.csv"),
     )
+    exercise_matches = [
+        f
+        for f in exercise_all
+        if re.match(r".*com\.samsung\.shealth\.exercise\.\d{14}\.csv$", f)
+    ]
 
     def get_latest_file(matches: list) -> str | None:
         """Return the most recent file based on date in filename."""
