@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import os
+
 import altair as alt
 import pandas as pd
 import streamlit as st
 
 from body_analysis.data_ingestion import load_all
-from body_analysis.phases import load_phases, phase_boundaries, summarize_phase
+from body_analysis.phases import load_phases, summarize_phase
 
 st.set_page_config(page_title="Body Analysis", page_icon="📈", layout="wide")
 
@@ -215,36 +216,39 @@ if phases:
     st.markdown("</div>", unsafe_allow_html=True)
 else:
     st.info(
-        "Aucune phase définie. Ajoutez un fichier data/phases.json pour tracer les changements de phase."
+        "Aucune phase définie. Ajoutez un fichier data/phases.json pour tracer les changements de phase.",
     )
 
-# === Sélecteur d'années pour les graphiques ===
-st.header("Filtrer par année")
+# === Sélecteur de périodes relatives pour les graphiques ===
+st.header("Filtrer par période")
 import datetime
 
-
-def get_years(df, date_col):
-    if df.empty or date_col not in df.columns:
-        return []
-    return sorted(set(df[date_col].dt.year))
+from dateutil.relativedelta import relativedelta
 
 
-years_weight = get_years(weight_df, "date")
-years_cal = get_years(daily_cal_df, "date")
-years = [y for y in sorted(set(years_weight + years_cal), reverse=True) if y >= 2024]
-current_year = datetime.datetime.now().year
+def get_filter_date(period):
+    """Retourne la date de début du filtre basée sur la période sélectionnée."""
+    now = datetime.datetime.now()
+    if period == "Dernier mois":
+        return now - relativedelta(months=1)
+    if period == "3 derniers mois":
+        return now - relativedelta(months=3)
+    if period == "6 derniers mois":
+        return now - relativedelta(months=6)
+    if period == "1 dernière année":
+        return now - relativedelta(years=1)
+    # Tout
+    return None
 
-if years:
-    default_idx = 0 if current_year not in years else years.index(current_year)
-    year_labels = ["Tout"] + [str(y) for y in years]
-    selected = st.radio(
-        "Année à afficher",
-        year_labels,
-        index=default_idx + 1 if current_year in years else 0,
-        horizontal=True,
-    )
-else:
-    selected = "Tout"
+
+selected = st.radio(
+    "Période à afficher",
+    ["Dernier mois", "3 derniers mois", "6 derniers mois", "1 dernière année", "Tout"],
+    index=0,
+    horizontal=True,
+)
+
+filter_date = get_filter_date(selected)
 
 # Légende des couleurs de phases
 phase_legend = {
@@ -260,26 +264,24 @@ legend_html += "</div>"
 st.markdown(legend_html, unsafe_allow_html=True)
 
 
-def filter_year(df, date_col, year):
+def filter_by_date(df, date_col, filter_date):
     if df.empty or date_col not in df.columns:
         return df
-    if year == "Tout":
+    if filter_date is None:
         return df
-    return df[df[date_col].dt.year == int(year)]
+    return df[df[date_col] >= filter_date]
 
 
-def filter_phases(phases, year):
-    if not phases or year == "Tout":
+def filter_phases(phases, filter_date):
+    if not phases or filter_date is None:
         return phases
     filtered = []
     for p in phases:
-        start_year = pd.Timestamp(p.start).year
-        end_year = pd.Timestamp(p.end).year
-        if int(year) >= start_year and int(year) <= end_year:
-            start = max(pd.Timestamp(p.start), pd.Timestamp(f"{year}-01-01"))
-            end = min(pd.Timestamp(p.end), pd.Timestamp(f"{year}-12-31"))
+        end = pd.Timestamp(p.end)
+        if end >= filter_date:
+            start = max(pd.Timestamp(p.start), pd.Timestamp(filter_date))
             filtered.append(
-                type("Phase", (), {"start": start, "end": end, "type": p.type})()
+                type("Phase", (), {"start": start, "end": end, "type": p.type})(),
             )
     return filtered
 
@@ -295,7 +297,7 @@ phase_colors = {
 }
 phase_opacity = 0.15
 phase_rects = None
-filtered_phases = filter_phases(phases, selected)
+filtered_phases = filter_phases(phases, filter_date)
 if filtered_phases:
     rect_data = []
     for p in filtered_phases:
@@ -306,11 +308,12 @@ if filtered_phases:
                 "end": Timestamp(p.end),
                 "type": p.type,
                 "color": color,
-            }
+            },
         )
     rect_df = pd.DataFrame(rect_data)
     phase_rects = (
-        alt.Chart(rect_df)
+        alt
+        .Chart(rect_df)
         .mark_rect(opacity=phase_opacity)
         .encode(
             x=alt.X("start:T", title=None),
@@ -318,7 +321,8 @@ if filtered_phases:
             color=alt.Color(
                 "type:N",
                 scale=alt.Scale(
-                    domain=list(phase_colors.keys()), range=list(phase_colors.values())
+                    domain=list(phase_colors.keys()),
+                    range=list(phase_colors.values()),
                 ),
                 legend=None,
             ),
@@ -326,13 +330,14 @@ if filtered_phases:
     )
 
 st.subheader("Évolution du poids")
-filtered_weight_df = filter_year(weight_df, "date", selected)
+filtered_weight_df = filter_by_date(weight_df, "date", filter_date)
+w_clean = pd.DataFrame()  # Initialize globally for later use
 if filtered_weight_df.empty or "weight" not in filtered_weight_df.columns:
     st.info("Aucune donnée de poids disponible.")
 else:
     w_clean = filtered_weight_df.dropna(subset=["weight"])
     base = alt.Chart(w_clean).encode(
-        x=alt.X("date:T", axis=alt.Axis(format="%m/%y", title="Mois/Année"))
+        x=alt.X("date:T", axis=alt.Axis(format="%m/%y", title="Mois/Année")),
     )
     y_min = w_clean["weight"].min()
     y_max = w_clean["weight"].max()
@@ -343,15 +348,18 @@ else:
             alt.Tooltip("weight:Q", title="Poids (kg)", format=".2f"),
         ],
     )
-    
+
     # Lignes de tendance par phase
     trend_layers = []
     if filtered_phases:
         for p in filtered_phases:
-            phase_data = w_clean[(w_clean["date"] >= p.start) & (w_clean["date"] <= p.end)]
+            phase_data = w_clean[
+                (w_clean["date"] >= p.start) & (w_clean["date"] <= p.end)
+            ]
             if not phase_data.empty and len(phase_data) > 1:
                 trend = (
-                    alt.Chart(phase_data)
+                    alt
+                    .Chart(phase_data)
                     .mark_line(color="#90EE90", strokeDash=[5, 5], size=3)
                     .transform_regression("date", "weight", method="linear")
                     .encode(
@@ -360,17 +368,17 @@ else:
                     )
                 )
                 trend_layers.append(trend)
-    
+
     chart = line
     for trend in trend_layers:
         chart = chart + trend
     if phase_rects is not None:
         chart = phase_rects + chart
-    st.altair_chart(chart.properties(height=400), use_container_width=True)
+    st.altair_chart(chart.properties(height=400), width="stretch")
 
 # === Graphique Masse grasse et musculaire ===
 phase_rects2 = None
-filtered_phases2 = filter_phases(phases, selected)
+filtered_phases2 = filter_phases(phases, filter_date)
 if filtered_phases2:
     rect_data2 = []
     for p in filtered_phases2:
@@ -381,11 +389,12 @@ if filtered_phases2:
                 "end": Timestamp(p.end),
                 "type": p.type,
                 "color": color,
-            }
+            },
         )
     rect_df2 = pd.DataFrame(rect_data2)
     phase_rects2 = (
-        alt.Chart(rect_df2)
+        alt
+        .Chart(rect_df2)
         .mark_rect(opacity=phase_opacity)
         .encode(
             x=alt.X("start:T", title=None),
@@ -393,7 +402,8 @@ if filtered_phases2:
             color=alt.Color(
                 "type:N",
                 scale=alt.Scale(
-                    domain=list(phase_colors.keys()), range=list(phase_colors.values())
+                    domain=list(phase_colors.keys()),
+                    range=list(phase_colors.values()),
                 ),
                 legend=None,
             ),
@@ -402,33 +412,41 @@ if filtered_phases2:
 
 # Masse grasse
 st.subheader("Masse grasse")
-filtered_metrics_df = filter_year(weight_df, "date", selected)
+filtered_metrics_df = filter_by_date(weight_df, "date", filter_date)
 if not filtered_metrics_df.empty and "body_fat" in filtered_metrics_df.columns:
     bf_clean = filtered_metrics_df.dropna(subset=["body_fat"])
     if not bf_clean.empty:
         y_min = bf_clean["body_fat"].min()
         y_max = bf_clean["body_fat"].max()
         line_bf = (
-            alt.Chart(bf_clean)
+            alt
+            .Chart(bf_clean)
             .mark_line(color="#FF8C00", size=2)
             .encode(
                 x=alt.X("date:T", axis=alt.Axis(format="%m/%y", title="Mois/Année")),
-                y=alt.Y("body_fat:Q", title="Masse grasse (%)", scale=alt.Scale(domain=[y_min, y_max])),
+                y=alt.Y(
+                    "body_fat:Q",
+                    title="Masse grasse (%)",
+                    scale=alt.Scale(domain=[y_min, y_max]),
+                ),
                 tooltip=[
                     alt.Tooltip("date:T", title="Date", format="%d/%m/%Y"),
                     alt.Tooltip("body_fat:Q", title="Masse grasse (%)", format=".2f"),
                 ],
             )
         )
-        
+
         # Lignes de tendance par phase
         trend_layers_bf = []
         if filtered_phases2:
             for p in filtered_phases2:
-                phase_data = bf_clean[(bf_clean["date"] >= p.start) & (bf_clean["date"] <= p.end)]
+                phase_data = bf_clean[
+                    (bf_clean["date"] >= p.start) & (bf_clean["date"] <= p.end)
+                ]
                 if not phase_data.empty and len(phase_data) > 1:
                     trend = (
-                        alt.Chart(phase_data)
+                        alt
+                        .Chart(phase_data)
                         .mark_line(color="#FFD580", strokeDash=[5, 5], size=3)
                         .transform_regression("date", "body_fat", method="linear")
                         .encode(
@@ -437,61 +455,80 @@ if not filtered_metrics_df.empty and "body_fat" in filtered_metrics_df.columns:
                         )
                     )
                     trend_layers_bf.append(trend)
-        
+
         chart_bf = line_bf
         for trend in trend_layers_bf:
             chart_bf = chart_bf + trend
         if phase_rects2 is not None:
             chart_bf = phase_rects2 + chart_bf
-        st.altair_chart(chart_bf.properties(height=400), use_container_width=True)
+        st.altair_chart(chart_bf.properties(height=400), width="stretch")
 
 # Masse musculaire
 st.subheader("Masse musculaire")
-if not filtered_metrics_df.empty and "skeletal_muscle_mass" in filtered_metrics_df.columns:
+if (
+    not filtered_metrics_df.empty
+    and "skeletal_muscle_mass" in filtered_metrics_df.columns
+):
     muscle_clean = filtered_metrics_df.dropna(subset=["skeletal_muscle_mass"])
     if not muscle_clean.empty:
         y_min = muscle_clean["skeletal_muscle_mass"].min()
         y_max = muscle_clean["skeletal_muscle_mass"].max()
         line_muscle = (
-            alt.Chart(muscle_clean)
+            alt
+            .Chart(muscle_clean)
             .mark_line(color="#1f77b4", size=2)
             .encode(
                 x=alt.X("date:T", axis=alt.Axis(format="%m/%y", title="Mois/Année")),
-                y=alt.Y("skeletal_muscle_mass:Q", title="Masse musculaire (kg)", scale=alt.Scale(domain=[y_min, y_max])),
+                y=alt.Y(
+                    "skeletal_muscle_mass:Q",
+                    title="Masse musculaire (kg)",
+                    scale=alt.Scale(domain=[y_min, y_max]),
+                ),
                 tooltip=[
                     alt.Tooltip("date:T", title="Date", format="%d/%m/%Y"),
-                    alt.Tooltip("skeletal_muscle_mass:Q", title="Masse musculaire (kg)", format=".2f"),
+                    alt.Tooltip(
+                        "skeletal_muscle_mass:Q",
+                        title="Masse musculaire (kg)",
+                        format=".2f",
+                    ),
                 ],
             )
         )
-        
+
         # Lignes de tendance par phase
         trend_layers_muscle = []
         if filtered_phases2:
             for p in filtered_phases2:
-                phase_data = muscle_clean[(muscle_clean["date"] >= p.start) & (muscle_clean["date"] <= p.end)]
+                phase_data = muscle_clean[
+                    (muscle_clean["date"] >= p.start) & (muscle_clean["date"] <= p.end)
+                ]
                 if not phase_data.empty and len(phase_data) > 1:
                     trend = (
-                        alt.Chart(phase_data)
+                        alt
+                        .Chart(phase_data)
                         .mark_line(color="#17a2b8", strokeDash=[5, 5], size=3)
-                        .transform_regression("date", "skeletal_muscle_mass", method="linear")
+                        .transform_regression(
+                            "date",
+                            "skeletal_muscle_mass",
+                            method="linear",
+                        )
                         .encode(
                             x="date:T",
                             y="skeletal_muscle_mass:Q",
                         )
                     )
                     trend_layers_muscle.append(trend)
-        
+
         chart_muscle = line_muscle
         for trend in trend_layers_muscle:
             chart_muscle = chart_muscle + trend
         if phase_rects2 is not None:
             chart_muscle = phase_rects2 + chart_muscle
-        st.altair_chart(chart_muscle.properties(height=400), use_container_width=True)
+        st.altair_chart(chart_muscle.properties(height=400), width="stretch")
 
 # === Graphique Apport calorique ===
 phase_rects3 = None
-filtered_phases3 = filter_phases(phases, selected)
+filtered_phases3 = filter_phases(phases, filter_date)
 if filtered_phases3:
     rect_data3 = []
     for p in filtered_phases3:
@@ -502,11 +539,12 @@ if filtered_phases3:
                 "end": Timestamp(p.end),
                 "type": p.type,
                 "color": color,
-            }
+            },
         )
     rect_df3 = pd.DataFrame(rect_data3)
     phase_rects3 = (
-        alt.Chart(rect_df3)
+        alt
+        .Chart(rect_df3)
         .mark_rect(opacity=phase_opacity)
         .encode(
             x=alt.X("start:T", title=None),
@@ -514,7 +552,8 @@ if filtered_phases3:
             color=alt.Color(
                 "type:N",
                 scale=alt.Scale(
-                    domain=list(phase_colors.keys()), range=list(phase_colors.values())
+                    domain=list(phase_colors.keys()),
+                    range=list(phase_colors.values()),
                 ),
                 legend=None,
             ),
@@ -522,54 +561,68 @@ if filtered_phases3:
     )
 
 st.subheader("Apport calorique quotidien")
-filtered_cal_df = filter_year(daily_cal_df, "date", selected)
+filtered_cal_df = filter_by_date(daily_cal_df, "date", filter_date)
 if filtered_cal_df.empty:
     st.info("Aucune donnée d'alimentation disponible.")
 else:
     cal_chart = (
-        alt.Chart(filtered_cal_df)
+        alt
+        .Chart(filtered_cal_df)
         .mark_bar(color="#2ca02c")
         .encode(
             x=alt.X("date:T", axis=alt.Axis(format="%m/%y", title="Mois/Année")),
-            y=alt.Y("calories:Q", title="Calories")
+            y=alt.Y("calories:Q", title="Calories"),
         )
     )
     if phase_rects3 is not None:
         cal_chart = phase_rects3 + cal_chart
-    st.altair_chart(cal_chart.properties(height=400), use_container_width=True)
+    st.altair_chart(cal_chart.properties(height=400), width="stretch")
 
 # === Efficacité des phases ===
 st.header("⚖️ Efficacité des phases")
 
 if phases:
     summaries = [summarize_phase(weight_data, daily_cal_data, p) for p in phases]
-    
+
     # Créer un DataFrame pour comparaison
     comparison_data = []
     for summary in summaries:
         phase_name = summary["label"].split("(")[0].strip()
-        phase_type = summary["label"].split("(")[1].strip(")") if "(" in summary["label"] else "free"
-        
+        phase_type = (
+            summary["label"].split("(")[1].strip(")")
+            if "(" in summary["label"]
+            else "free"
+        )
+
         comparison_data.append({
             "Phase": phase_name,
             "Type": phase_type,
             "Durée (jours)": summary["days"],
-            "Δ Poids/sem (kg)": summary.get("weight_delta") / (summary["days"] / 7) if summary["days"] > 0 and summary.get("weight_delta") else None,
-            "Δ Masse grasse/sem (%)": summary.get("body_fat_delta") / (summary["days"] / 7) if summary["days"] > 0 and summary.get("body_fat_delta") else None,
-            "Δ Masse musculaire/sem (kg)": summary.get("skeletal_muscle_delta") / (summary["days"] / 7) if summary["days"] > 0 and summary.get("skeletal_muscle_delta") else None,
+            "Δ Poids/sem (kg)": summary.get("weight_delta") / (summary["days"] / 7)
+            if summary["days"] > 0 and summary.get("weight_delta")
+            else None,
+            "Δ Masse grasse/sem (%)": summary.get("body_fat_delta")
+            / (summary["days"] / 7)
+            if summary["days"] > 0 and summary.get("body_fat_delta")
+            else None,
+            "Δ Masse musculaire/sem (kg)": summary.get("skeletal_muscle_delta")
+            / (summary["days"] / 7)
+            if summary["days"] > 0 and summary.get("skeletal_muscle_delta")
+            else None,
         })
-    
+
     comparison_df = pd.DataFrame(comparison_data)
-    
+
     # Graphiques de comparaison
     col1, col2, col3 = st.columns(3)
-    
+
     with col1:
         st.markdown("**Variation de poids par semaine**")
         chart_data = comparison_df[["Phase", "Δ Poids/sem (kg)"]].dropna()
         if not chart_data.empty:
             chart = (
-                alt.Chart(chart_data)
+                alt
+                .Chart(chart_data)
                 .mark_bar()
                 .encode(
                     x=alt.X("Phase:N", title=None, sort=None),
@@ -577,7 +630,7 @@ if phases:
                     color=alt.condition(
                         alt.datum["Δ Poids/sem (kg)"] > 0,
                         alt.value("#2ca02c"),
-                        alt.value("#dc3545")
+                        alt.value("#dc3545"),
                     ),
                     tooltip=[
                         alt.Tooltip("Phase:N"),
@@ -585,14 +638,15 @@ if phases:
                     ],
                 )
             )
-            st.altair_chart(chart.properties(height=250), use_container_width=True)
-    
+            st.altair_chart(chart.properties(height=250), width="stretch")
+
     with col2:
         st.markdown("**Variation de masse grasse par semaine**")
         chart_data = comparison_df[["Phase", "Δ Masse grasse/sem (%)"]].dropna()
         if not chart_data.empty:
             chart = (
-                alt.Chart(chart_data)
+                alt
+                .Chart(chart_data)
                 .mark_bar()
                 .encode(
                     x=alt.X("Phase:N", title=None, sort=None),
@@ -600,7 +654,7 @@ if phases:
                     color=alt.condition(
                         alt.datum["Δ Masse grasse/sem (%)"] > 0,
                         alt.value("#FF8C00"),
-                        alt.value("#2ca02c")
+                        alt.value("#2ca02c"),
                     ),
                     tooltip=[
                         alt.Tooltip("Phase:N"),
@@ -608,14 +662,15 @@ if phases:
                     ],
                 )
             )
-            st.altair_chart(chart.properties(height=250), use_container_width=True)
-    
+            st.altair_chart(chart.properties(height=250), width="stretch")
+
     with col3:
         st.markdown("**Variation de masse musculaire par semaine**")
         chart_data = comparison_df[["Phase", "Δ Masse musculaire/sem (kg)"]].dropna()
         if not chart_data.empty:
             chart = (
-                alt.Chart(chart_data)
+                alt
+                .Chart(chart_data)
                 .mark_bar()
                 .encode(
                     x=alt.X("Phase:N", title=None, sort=None),
@@ -623,7 +678,7 @@ if phases:
                     color=alt.condition(
                         alt.datum["Δ Masse musculaire/sem (kg)"] > 0,
                         alt.value("#1f77b4"),
-                        alt.value("#dc3545")
+                        alt.value("#dc3545"),
                     ),
                     tooltip=[
                         alt.Tooltip("Phase:N"),
@@ -631,7 +686,7 @@ if phases:
                     ],
                 )
             )
-            st.altair_chart(chart.properties(height=250), use_container_width=True)
+            st.altair_chart(chart.properties(height=250), width="stretch")
 
 st.divider()
 
@@ -645,7 +700,7 @@ with col1:
     heatmap_metric = st.selectbox(
         "Métrique à afficher",
         ["Calories", "Poids", "Masse grasse", "Masse musculaire"],
-        key="heatmap_metric"
+        key="heatmap_metric",
     )
 
 # Obtenir les années disponibles
@@ -658,7 +713,12 @@ years_available = sorted(set(years_available), reverse=True)
 
 with col2:
     if years_available:
-        selected_year = st.selectbox("Année", years_available, index=0, key="heatmap_year")
+        selected_year = st.selectbox(
+            "Année",
+            years_available,
+            index=0,
+            key="heatmap_year",
+        )
     else:
         st.warning("Aucune donnée disponible.")
         st.stop()
@@ -685,21 +745,28 @@ if not heatmap_data_df.empty and heatmap_value_col in heatmap_data_df.columns:
     # Ajouter colonnes pour le calendrier
     heatmap_data_df["day"] = heatmap_data_df["date"].dt.day
     heatmap_data_df["month"] = heatmap_data_df["date"].dt.month
-    heatmap_data_df["weekday"] = heatmap_data_df["date"].dt.dayofweek  # 0=Lundi, 6=Dimanche
+    heatmap_data_df["weekday"] = heatmap_data_df[
+        "date"
+    ].dt.dayofweek  # 0=Lundi, 6=Dimanche
     heatmap_data_df["week"] = heatmap_data_df["date"].dt.isocalendar().week
-    
+
     # Nettoyer les données
     heatmap_data_df = heatmap_data_df.dropna(subset=[heatmap_value_col])
-    
+
     # Créer le heatmap
     heatmap = (
-        alt.Chart(heatmap_data_df)
+        alt
+        .Chart(heatmap_data_df)
         .mark_rect()
         .encode(
             x=alt.X("week:O", title="Semaine", axis=alt.Axis(labelAngle=0)),
-            y=alt.Y("weekday:O", title="Jour", axis=alt.Axis(
-                labelExpr="['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'][datum.value]"
-            )),
+            y=alt.Y(
+                "weekday:O",
+                title="Jour",
+                axis=alt.Axis(
+                    labelExpr="['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'][datum.value]",
+                ),
+            ),
             color=alt.Color(
                 f"{heatmap_value_col}:Q",
                 scale=alt.Scale(scheme=heatmap_color_scheme),
@@ -707,13 +774,17 @@ if not heatmap_data_df.empty and heatmap_value_col in heatmap_data_df.columns:
             ),
             tooltip=[
                 alt.Tooltip("date:T", title="Date", format="%d/%m/%Y"),
-                alt.Tooltip(f"{heatmap_value_col}:Q", title=heatmap_metric, format=".2f"),
+                alt.Tooltip(
+                    f"{heatmap_value_col}:Q",
+                    title=heatmap_metric,
+                    format=".2f",
+                ),
             ],
         )
     )
-    
-    st.altair_chart(heatmap.properties(height=200), use_container_width=True)
-    
+
+    st.altair_chart(heatmap.properties(height=200), width="stretch")
+
     # Statistiques
     col1, col2, col3, col4 = st.columns(4)
     with col1:
