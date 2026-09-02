@@ -328,13 +328,47 @@ intermittent directement lisible dans les horodatages.
 
 ### 5.7 Limites assumées
 
-- **Aucun macronutriment dans l'export** : seules les calories sont
-  présentes. Pas d'analyse protéines, glucides, lipides. C'est une absence de
-  la source, non un choix de conception, et l'interface ne doit pas laisser
-  croire le contraire.
+- Les macronutriments **sont** disponibles, contrairement à ce que cette
+  spec affirmait d'abord. Ils ne vivent pas dans `food_intake` mais dans
+  `com.samsung.health.nutrition` : protéines, lipides détaillés (saturés,
+  trans, mono- et poly-insaturés), fibres, sucres et sucres ajoutés,
+  cholestérol, sodium, potassium, calcium, fer, vitamines A, C et D, sur
+  3 637 lignes couvrant les mêmes 747 jours à 100 %. Leur ingestion et les
+  analyses correspondantes relèvent du plan d'extension (cf. section 5.8).
 - `vo2_max` et `sweat_loss` sont vides dans les données réelles.
 - La cadence n'est présente que sur 6 % des séances : exploitable en vue de
   séance, pas en tendance.
+
+### 5.8 Dimensions disponibles dans l'export complet
+
+L'export Samsung Health réel compte 87 CSV et 21 019 JSON, là où le dossier
+de travail initial n'en contenait que trois. Les dimensions suivantes sont
+présentes et inexploitées ; elles sont hors périmètre du premier plan
+d'implémentation et font l'objet d'un plan d'extension, avec leur propre
+migration.
+
+| Source | Volume | Apport |
+| --- | --- | --- |
+| `com.samsung.health.nutrition` | 3 637 lignes, 747 jours | macronutriments et micronutriments complets |
+| `com.samsung.shealth.calories_burned.details` | 2 877 jours | métabolisme de repos, calories actives, effet thermique des aliments |
+| `com.samsung.shealth.sleep` + `com.samsung.health.sleep_stage` | 1 087 nuits, 51 476 phases | efficacité, récupération physique et mentale, latence, sommeil profond et paradoxal |
+| `com.samsung.health.hrv` | 6 225 relevés | variabilité de la fréquence cardiaque |
+| `com.samsung.shealth.tracker.heart_rate` | 14 929 lignes, 9 945 JSON | fréquence cardiaque continue, fréquence de repos réelle |
+| `com.samsung.shealth.stress` | 8 678 relevés | score de stress |
+| `com.samsung.shealth.activity.day_summary`, `step_daily_trend` | 2 864 et 6 318 jours | pas, temps actif, étages, distance |
+| `oxygen_saturation`, `respiratory_rate`, `skin_temperature` | 658, 671, ~1 500 | marqueurs nocturnes |
+
+`calories_burned.details` mérite une mention particulière : il donne la
+décomposition de la dépense énergétique telle que l'appareil la calcule, ce
+qui permet de **confronter l'estimation de la section 5.1 à une mesure
+directe** au lieu de la prendre pour argent comptant.
+
+**Réserve d'approvisionnement.** L'export complet ne contient **aucun**
+fichier `live_data` ni `location_data`, alors que son CSV de séances en
+référence 4 654. Les 452 Mo de données intra-séance du dossier de travail
+proviennent donc d'une autre source, à identifier : si les exports futurs ne
+les contiennent pas, la vue de séance détaillée reposera sur un instantané
+historique figé et non sur un flux entretenu.
 
 ## 6. API
 
