@@ -161,3 +161,10 @@ cython_debug/
 
 # PyCharm
 .idea/
+
+.env
+backend/.venv/
+backend/.env
+__pycache__/
+.pytest_cache/
+.ruff_cache/
