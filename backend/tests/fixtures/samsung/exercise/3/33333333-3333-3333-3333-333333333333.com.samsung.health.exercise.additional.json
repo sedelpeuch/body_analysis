@@ -1,0 +1,10 @@
+{
+  "pool_length": 25,
+  "pool_length_unit": "meter",
+  "total_distance": 2500.0,
+  "total_duration": 2542638,
+  "lengths": [
+    {"duration": 25379, "interval": 1, "resting_time": 0, "stroke_count": 8, "stroke_type": "Freestyle"},
+    {"duration": 26555, "interval": 1, "resting_time": 1200, "stroke_count": 9, "stroke_type": "Breaststroke"}
+  ]
+}
