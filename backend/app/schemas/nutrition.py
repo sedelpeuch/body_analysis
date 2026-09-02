@@ -24,3 +24,26 @@ class EntryOut(BaseModel):
     amount: float | None
     unit_label: str
     calories: float | None
+
+
+class MealTypeShareOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    meal_type_label: str
+    calories: float | None
+    entry_count: int
+
+
+class TopFoodOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    food_name: str
+    entry_count: int
+    total_calories: float | None
+
+
+class NutritionBreakdownOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    by_meal_type: list[MealTypeShareOut]
+    top_foods: list[TopFoodOut]

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Query
 
 from app.api.deps import DateRangeDep, DbSession
 from app.schemas.common import Page
-from app.schemas.nutrition import DailyNutritionOut, EntryOut
+from app.schemas.nutrition import DailyNutritionOut, EntryOut, NutritionBreakdownOut
 from app.services import nutrition as nutrition_service
 from app.services.nutrition import NUTRITION_PAGE_SIZE
 
@@ -32,3 +32,9 @@ async def get_entries(
         page_size=NUTRITION_PAGE_SIZE,
         total=total,
     )
+
+
+@router.get("/breakdown", response_model=NutritionBreakdownOut)
+async def get_breakdown(session: DbSession, date_range: DateRangeDep):
+    breakdown = await nutrition_service.get_breakdown(session, date_range)
+    return NutritionBreakdownOut.model_validate(breakdown)

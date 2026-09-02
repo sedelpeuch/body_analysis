@@ -9,6 +9,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analytics.labels import meal_type_label, unit_label
+from app.analytics.nutrition import NutritionEntryInput, TopFood, compute_top_foods
 from app.api.deps import DateRange
 from app.models import NutritionEntry
 
@@ -85,3 +86,51 @@ async def list_entries(
         for row in rows
     ]
     return entries, total
+
+
+@dataclass(frozen=True, slots=True)
+class MealTypeShare:
+    meal_type_label: str
+    calories: float | None
+    entry_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class NutritionBreakdown:
+    by_meal_type: list[MealTypeShare]
+    top_foods: list[TopFood]
+
+
+async def get_breakdown(session: AsyncSession, date_range: DateRange) -> NutritionBreakdown:
+    rows = (await session.execute(_entries_query(date_range))).scalars().all()
+
+    totals: dict[str, float] = {}
+    counts: dict[str, int] = {}
+    has_calories: dict[str, bool] = {}
+    for row in rows:
+        label = meal_type_label(row.meal_type)
+        counts[label] = counts.get(label, 0) + 1
+        if row.calories is not None:
+            totals[label] = totals.get(label, 0.0) + row.calories
+            has_calories[label] = True
+
+    by_meal_type = [
+        MealTypeShare(
+            meal_type_label=label,
+            calories=totals.get(label) if has_calories.get(label) else None,
+            entry_count=count,
+        )
+        for label, count in counts.items()
+    ]
+
+    entries = [
+        NutritionEntryInput(
+            consumed_at=r.consumed_at,
+            food_name=r.food_name,
+            calories=r.calories,
+        )
+        for r in rows
+    ]
+    top_foods = compute_top_foods(entries, limit=10)
+
+    return NutritionBreakdown(by_meal_type=by_meal_type, top_foods=top_foods)
