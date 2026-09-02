@@ -1,6 +1,6 @@
 """Tests d'intégration du service nutrition."""
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 from sqlalchemy import text
@@ -13,7 +13,9 @@ from app.services.nutrition import NUTRITION_PAGE_SIZE, get_daily, list_entries
 pytestmark = pytest.mark.asyncio
 
 
-async def _entry(session: AsyncSession, *, uid: str, at: datetime, calories: float | None) -> None:
+async def _entry(
+    session: AsyncSession, *, uid: str, at: datetime, calories: float | None
+) -> None:
     session.add(
         NutritionEntry(
             source_uuid=uid,
@@ -22,7 +24,7 @@ async def _entry(session: AsyncSession, *, uid: str, at: datetime, calories: flo
             meal_type=100002,
             unit_code=120001,
             calories=calories,
-        )
+        ),
     )
     await session.commit()
 
@@ -31,13 +33,15 @@ async def test_get_daily_uses_mv_daily_nutrition(session: AsyncSession) -> None:
     await _entry(
         session,
         uid="nut-1-unique-2099",
-        at=datetime(2099, 4, 1, 12, tzinfo=timezone.utc),
+        at=datetime(2099, 4, 1, 12, tzinfo=UTC),
         calories=500.0,
     )
     await session.execute(text("REFRESH MATERIALIZED VIEW mv_daily_nutrition"))
     await session.commit()
 
-    result = await get_daily(session, DateRange(start=date(2099, 4, 1), end=date(2099, 4, 30)))
+    result = await get_daily(
+        session, DateRange(start=date(2099, 4, 1), end=date(2099, 4, 30))
+    )
 
     matching = [r for r in result if r.day == date(2099, 4, 1)]
     assert matching[0].calories == pytest.approx(500.0)
@@ -48,7 +52,7 @@ async def test_list_entries_translates_labels(session: AsyncSession) -> None:
     await _entry(
         session,
         uid="nut-2-unique-2099",
-        at=datetime(2098, 4, 1, 8, tzinfo=timezone.utc),
+        at=datetime(2098, 4, 1, 8, tzinfo=UTC),
         calories=300.0,
     )
 
@@ -68,7 +72,7 @@ async def test_list_entries_paginates_by_fixed_page_size(session: AsyncSession) 
         await _entry(
             session,
             uid=f"nut-page-{i}-unique-2099",
-            at=datetime(2097, 5, 1, 8, tzinfo=timezone.utc),
+            at=datetime(2097, 5, 1, 8, tzinfo=UTC),
             calories=100.0,
         )
 

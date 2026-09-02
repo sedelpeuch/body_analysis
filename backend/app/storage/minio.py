@@ -86,7 +86,9 @@ class MinioStorage:
     def delete_prefix(self, prefix: str) -> None:
         self._ensure_bucket()
         for obj in self._client.list_objects(
-            self._bucket, prefix=prefix, recursive=True
+            self._bucket,
+            prefix=prefix,
+            recursive=True,
         ):
             self._client.remove_object(self._bucket, obj.object_name)
 

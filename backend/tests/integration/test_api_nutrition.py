@@ -1,6 +1,6 @@
 """Tests d'intégration de l'API nutrition."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -17,12 +17,12 @@ async def test_get_entries_paginates_with_page_param(session: AsyncSession) -> N
     session.add(
         NutritionEntry(
             source_uuid="nut-api-1-unique-2099",
-            consumed_at=datetime(2099, 4, 1, 8, tzinfo=timezone.utc),
+            consumed_at=datetime(2099, 4, 1, 8, tzinfo=UTC),
             food_name="Riz",
             meal_type=100002,
             unit_code=120001,
             calories=200.0,
-        )
+        ),
     )
     await session.commit()
 

@@ -9,7 +9,9 @@ def test_compute_swolf_groups_by_stroke_type() -> None:
     lengths = [
         SwimLengthInput(idx=0, duration_ms=30000, stroke_count=18, stroke_type="Crawl"),
         SwimLengthInput(idx=1, duration_ms=32000, stroke_count=20, stroke_type="Crawl"),
-        SwimLengthInput(idx=2, duration_ms=40000, stroke_count=14, stroke_type="Brasse"),
+        SwimLengthInput(
+            idx=2, duration_ms=40000, stroke_count=14, stroke_type="Brasse"
+        ),
     ]
 
     result = {r.stroke_type: r for r in compute_swolf(lengths)}
@@ -24,7 +26,9 @@ def test_compute_swolf_groups_by_stroke_type() -> None:
 
 def test_compute_swolf_skips_lengths_missing_duration_or_strokes() -> None:
     lengths = [
-        SwimLengthInput(idx=0, duration_ms=30000, stroke_count=None, stroke_type="Crawl"),
+        SwimLengthInput(
+            idx=0, duration_ms=30000, stroke_count=None, stroke_type="Crawl"
+        ),
         SwimLengthInput(idx=1, duration_ms=None, stroke_count=20, stroke_type="Crawl"),
         SwimLengthInput(idx=2, duration_ms=30000, stroke_count=18, stroke_type="Crawl"),
     ]
@@ -36,7 +40,9 @@ def test_compute_swolf_skips_lengths_missing_duration_or_strokes() -> None:
 
 
 def test_compute_swolf_labels_missing_stroke_type_explicitly() -> None:
-    lengths = [SwimLengthInput(idx=0, duration_ms=30000, stroke_count=18, stroke_type=None)]
+    lengths = [
+        SwimLengthInput(idx=0, duration_ms=30000, stroke_count=18, stroke_type=None)
+    ]
 
     result = compute_swolf(lengths)
 

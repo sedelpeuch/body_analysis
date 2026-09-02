@@ -52,7 +52,9 @@ async def test_get_current_phase_picks_most_recent_starts_on_at_or_before_today(
     assert result.id == maintain.id
 
 
-async def test_get_current_phase_is_none_before_any_phase(session: AsyncSession) -> None:
+async def test_get_current_phase_is_none_before_any_phase(
+    session: AsyncSession,
+) -> None:
     await _reset_phases(session)
     await _phase(
         session,

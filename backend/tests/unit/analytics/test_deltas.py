@@ -55,7 +55,9 @@ def test_compute_delta_is_none_when_window_predates_data() -> None:
 
 
 def test_compute_change_between_explicit_dates() -> None:
-    delta = compute_change_between(POINTS, start=date(2026, 1, 1), end=date(2026, 1, 15))
+    delta = compute_change_between(
+        POINTS, start=date(2026, 1, 1), end=date(2026, 1, 15)
+    )
 
     assert delta.window_days == 14
     assert delta.start_value == 80.0

@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Sequence
 from zoneinfo import ZoneInfo
 
 
@@ -24,7 +24,9 @@ class HourlyBucket:
 
 
 def compute_eating_window(
-    entries: Sequence[NutritionEntryInput], *, tz: str = "Europe/Paris"
+    entries: Sequence[NutritionEntryInput],
+    *,
+    tz: str = "Europe/Paris",
 ) -> list[HourlyBucket]:
     zone = ZoneInfo(tz)
     counts = [0] * 24
@@ -50,7 +52,9 @@ class TopFood:
 
 
 def compute_top_foods(
-    entries: Sequence[NutritionEntryInput], *, limit: int = 10
+    entries: Sequence[NutritionEntryInput],
+    *,
+    limit: int = 10,
 ) -> list[TopFood]:
     counts: Counter[str] = Counter()
     totals: dict[str, float] = defaultdict(float)

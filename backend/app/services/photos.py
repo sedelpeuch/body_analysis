@@ -53,11 +53,12 @@ async def upload_photo(
     """
     if tag not in ALLOWED_TAGS:
         raise UnsupportedMediaTypeError(
-            f"Tag inconnu : {tag}", allowed=sorted(ALLOWED_TAGS)
+            f"Tag inconnu : {tag}",
+            allowed=sorted(ALLOWED_TAGS),
         )
     if sniff_content_type(raw_bytes) is None:
         raise UnsupportedMediaTypeError(
-            "Le contenu envoyé n'est ni un JPEG ni un PNG reconnaissable."
+            "Le contenu envoyé n'est ni un JPEG ni un PNG reconnaissable.",
         )
 
     try:
@@ -70,7 +71,7 @@ async def upload_photo(
 
     existing = (
         await session.execute(
-            select(Photo).where(Photo.taken_on == taken_on, Photo.tag == tag)
+            select(Photo).where(Photo.taken_on == taken_on, Photo.tag == tag),
         )
     ).scalar_one_or_none()
 
@@ -109,7 +110,7 @@ async def upload_photo(
         await session.rollback()
         storage.delete(key)
         raise ConflictError(
-            "Cette image (sha256 identique) est déjà associée à une autre photo."
+            "Cette image (sha256 identique) est déjà associée à une autre photo.",
         ) from error
 
     await session.refresh(photo)
@@ -130,7 +131,10 @@ async def list_photos(session: AsyncSession, *, tag: str | None = None) -> list[
 
 
 async def delete_photo(
-    session: AsyncSession, storage: MinioStorage, *, photo_id: int
+    session: AsyncSession,
+    storage: MinioStorage,
+    *,
+    photo_id: int,
 ) -> None:
     photo = await session.get(Photo, photo_id)
     if photo is None:
@@ -154,7 +158,8 @@ async def get_photo_image(
 ) -> tuple[bytes, str]:
     if size not in DERIVATIVE_SIZES:
         raise ValidationError(
-            f"Taille inconnue : {size}", allowed=sorted(DERIVATIVE_SIZES)
+            f"Taille inconnue : {size}",
+            allowed=sorted(DERIVATIVE_SIZES),
         )
 
     photo = await session.get(Photo, photo_id)
@@ -170,11 +175,13 @@ async def get_photo_image(
     original = storage.get(photo.object_key)
     if original is None:
         raise NotFoundError(
-            f"Fichier de la photo {photo_id} introuvable dans le stockage"
+            f"Fichier de la photo {photo_id} introuvable dans le stockage",
         )
 
     derivative = make_derivative(
-        original.data, max_dimension=DERIVATIVE_SIZES[size], blur=blur
+        original.data,
+        max_dimension=DERIVATIVE_SIZES[size],
+        blur=blur,
     )
     if not blur:
         storage.put(cache_key, derivative, "image/jpeg")

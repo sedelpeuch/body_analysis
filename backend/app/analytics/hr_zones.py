@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Sequence
 
 _ZONE_DEFINITIONS = (
     (1, "Récupération", 0.0, 0.6),
@@ -49,12 +49,17 @@ class HrZoneTime:
 
 
 def compute_hr_zone_times(
-    samples: Sequence[tuple[datetime, int | None]], *, max_hr: int
+    samples: Sequence[tuple[datetime, int | None]],
+    *,
+    max_hr: int,
 ) -> list[HrZoneTime]:
     boundaries = hr_zone_boundaries(max_hr)
     seconds_by_zone = {b.zone: 0.0 for b in boundaries}
 
-    valid = sorted((sample for sample in samples if sample[1] is not None), key=lambda sample: sample[0])
+    valid = sorted(
+        (sample for sample in samples if sample[1] is not None),
+        key=lambda sample: sample[0],
+    )
     for (at0, hr0), (at1, _hr1) in zip(valid, valid[1:]):
         elapsed = (at1 - at0).total_seconds()
         if elapsed <= 0:

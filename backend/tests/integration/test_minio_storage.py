@@ -14,7 +14,9 @@ def _clean(minio_storage: MinioStorage):
     minio_storage.delete_prefix(TEST_PREFIX)
 
 
-def test_put_then_get_roundtrips_bytes_and_content_type(minio_storage: MinioStorage) -> None:
+def test_put_then_get_roundtrips_bytes_and_content_type(
+    minio_storage: MinioStorage,
+) -> None:
     key = f"{TEST_PREFIX}/roundtrip.jpg"
 
     minio_storage.put(key, b"donnees-binaires", "image/jpeg")
@@ -51,7 +53,9 @@ def test_delete_missing_key_does_not_raise(minio_storage: MinioStorage) -> None:
     minio_storage.delete(f"{TEST_PREFIX}/jamais-cree.jpg")
 
 
-def test_delete_prefix_removes_every_matching_object(minio_storage: MinioStorage) -> None:
+def test_delete_prefix_removes_every_matching_object(
+    minio_storage: MinioStorage,
+) -> None:
     minio_storage.put(f"{TEST_PREFIX}/derived/thumb/a.jpg", b"1", "image/jpeg")
     minio_storage.put(f"{TEST_PREFIX}/derived/thumb/b.jpg", b"2", "image/jpeg")
     minio_storage.put(f"{TEST_PREFIX}/derived/full/a.jpg", b"3", "image/jpeg")
@@ -63,7 +67,9 @@ def test_delete_prefix_removes_every_matching_object(minio_storage: MinioStorage
     assert minio_storage.exists(f"{TEST_PREFIX}/derived/full/a.jpg") is True
 
 
-def test_is_reachable_is_true_against_the_real_service(minio_storage: MinioStorage) -> None:
+def test_is_reachable_is_true_against_the_real_service(
+    minio_storage: MinioStorage,
+) -> None:
     assert minio_storage.is_reachable() is True
 
 

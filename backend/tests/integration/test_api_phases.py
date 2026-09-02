@@ -54,7 +54,8 @@ async def test_get_current_phase_can_be_null(session: AsyncSession) -> None:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get(
-                "/api/phases/current", params={"today": "1999-01-01"}
+                "/api/phases/current",
+                params={"today": "1999-01-01"},
             )
     finally:
         app.dependency_overrides.clear()

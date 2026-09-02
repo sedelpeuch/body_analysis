@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 UNKNOWN_STROKE = "Inconnu"
 
@@ -42,7 +42,8 @@ def compute_swolf(lengths: Sequence[SwimLengthInput]) -> list[SwolfByStroke]:
             stroke_type=stroke,
             length_count=len(values),
             mean_swolf=sum(values) / len(values),
-            mean_duration_s=sum(duration_by_stroke[stroke]) / len(duration_by_stroke[stroke]),
+            mean_duration_s=sum(duration_by_stroke[stroke])
+            / len(duration_by_stroke[stroke]),
         )
         for stroke, values in swolf_by_stroke.items()
     ]

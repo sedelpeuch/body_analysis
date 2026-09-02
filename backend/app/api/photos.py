@@ -41,10 +41,14 @@ async def upload_photo(
     raw_bytes = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(raw_bytes) > MAX_UPLOAD_BYTES:
         raise PayloadTooLargeError(
-            f"Photo trop volumineuse (maximum {MAX_UPLOAD_BYTES} octets)."
+            f"Photo trop volumineuse (maximum {MAX_UPLOAD_BYTES} octets).",
         )
     photo = await photos_service.upload_photo(
-        session, storage, taken_on=taken_on, tag=tag, raw_bytes=raw_bytes
+        session,
+        storage,
+        taken_on=taken_on,
+        tag=tag,
+        raw_bytes=raw_bytes,
     )
     return PhotoOut.model_validate(photo)
 
@@ -69,9 +73,14 @@ async def get_photo_image(
 ) -> Response:
     if size not in DERIVATIVE_SIZES:
         raise ValidationError(
-            f"Taille inconnue : {size}", allowed=sorted(DERIVATIVE_SIZES)
+            f"Taille inconnue : {size}",
+            allowed=sorted(DERIVATIVE_SIZES),
         )
     data, content_type = await photos_service.get_photo_image(
-        session, storage, photo_id=photo_id, size=size, blur=blur
+        session,
+        storage,
+        photo_id=photo_id,
+        size=size,
+        blur=blur,
     )
     return Response(content=data, media_type=content_type)

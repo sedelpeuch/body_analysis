@@ -23,7 +23,9 @@ class DailyNutritionRow:
     entry_count: int
 
 
-async def get_daily(session: AsyncSession, date_range: DateRange) -> list[DailyNutritionRow]:
+async def get_daily(
+    session: AsyncSession, date_range: DateRange
+) -> list[DailyNutritionRow]:
     where_parts: list[str] = []
     params: dict[str, date] = {}
     if date_range.start is not None:
@@ -34,10 +36,14 @@ async def get_daily(session: AsyncSession, date_range: DateRange) -> list[DailyN
         params["end"] = date_range.end
 
     where_clause = f" WHERE {' AND '.join(where_parts)}" if where_parts else ""
-    sql = text(f"SELECT day, calories, entry_count FROM mv_daily_nutrition{where_clause} ORDER BY day")
+    sql = text(
+        f"SELECT day, calories, entry_count FROM mv_daily_nutrition{where_clause} ORDER BY day"
+    )
     rows = (await session.execute(sql, params)).all()
     return [
-        DailyNutritionRow(day=row.day, calories=row.calories, entry_count=row.entry_count)
+        DailyNutritionRow(
+            day=row.day, calories=row.calories, entry_count=row.entry_count
+        )
         for row in rows
     ]
 
@@ -62,7 +68,9 @@ def _entries_query(date_range: DateRange):
 
 
 async def list_entries(
-    session: AsyncSession, date_range: DateRange, page: int
+    session: AsyncSession,
+    date_range: DateRange,
+    page: int,
 ) -> tuple[list[EntryRow], int]:
     base_query = _entries_query(date_range)
     total = (
@@ -71,8 +79,10 @@ async def list_entries(
 
     offset = (page - 1) * NUTRITION_PAGE_SIZE
     rows = (
-        await session.execute(base_query.limit(NUTRITION_PAGE_SIZE).offset(offset))
-    ).scalars().all()
+        (await session.execute(base_query.limit(NUTRITION_PAGE_SIZE).offset(offset)))
+        .scalars()
+        .all()
+    )
 
     entries = [
         EntryRow(
@@ -101,7 +111,9 @@ class NutritionBreakdown:
     top_foods: list[TopFood]
 
 
-async def get_breakdown(session: AsyncSession, date_range: DateRange) -> NutritionBreakdown:
+async def get_breakdown(
+    session: AsyncSession, date_range: DateRange
+) -> NutritionBreakdown:
     rows = (await session.execute(_entries_query(date_range))).scalars().all()
 
     totals: dict[str, float] = {}

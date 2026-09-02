@@ -12,7 +12,7 @@ MEAL_TYPE_LABELS = MappingProxyType(
         100004: "Collation",
         100005: "Collation matin",
         100006: "Collation soir",
-    }
+    },
 )
 
 UNIT_LABELS = MappingProxyType(
@@ -22,7 +22,7 @@ UNIT_LABELS = MappingProxyType(
         120004: "Portion",
         120005: "Unité",
         -1: "Non spécifié",
-    }
+    },
 )
 
 

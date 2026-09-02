@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
-from typing import Sequence
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +46,8 @@ def compute_progression(
     sessions: Sequence[tuple[date, Sequence[StrengthSetInput]]],
 ) -> list[ProgressionPoint]:
     return [
-        ProgressionPoint(at=day, total_volume_kg=compute_session_volume(sets).total_volume_kg)
+        ProgressionPoint(
+            at=day, total_volume_kg=compute_session_volume(sets).total_volume_kg
+        )
         for day, sets in sessions
     ]

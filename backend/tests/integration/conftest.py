@@ -34,7 +34,7 @@ TEST_DATABASE_URL = os.environ.get("BA_TEST_DATABASE_URL")
 async def engine() -> AsyncIterator[AsyncEngine]:
     if not TEST_DATABASE_URL:
         pytest.skip(
-            "BA_TEST_DATABASE_URL n'est pas défini : tests d'intégration ignorés"
+            "BA_TEST_DATABASE_URL n'est pas défini : tests d'intégration ignorés",
         )
 
     from alembic import command

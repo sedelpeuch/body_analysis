@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Sequence
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,7 +22,8 @@ class Delta:
 
 
 def find_nearest_at_or_before(
-    points: Sequence[TimePoint], target: date
+    points: Sequence[TimePoint],
+    target: date,
 ) -> TimePoint | None:
     candidates = [p for p in points if p.value is not None and p.at <= target]
     if not candidates:
@@ -31,7 +32,11 @@ def find_nearest_at_or_before(
 
 
 def _delta_between(
-    points: Sequence[TimePoint], *, start: date, end: date, window_days: int
+    points: Sequence[TimePoint],
+    *,
+    start: date,
+    end: date,
+    window_days: int,
 ) -> Delta:
     start_point = find_nearest_at_or_before(points, start)
     end_point = find_nearest_at_or_before(points, end)
@@ -47,14 +52,20 @@ def _delta_between(
 
 
 def compute_delta(
-    points: Sequence[TimePoint], *, reference: date, window_days: int
+    points: Sequence[TimePoint],
+    *,
+    reference: date,
+    window_days: int,
 ) -> Delta:
     start = reference - timedelta(days=window_days)
     return _delta_between(points, start=start, end=reference, window_days=window_days)
 
 
 def compute_change_between(
-    points: Sequence[TimePoint], *, start: date, end: date
+    points: Sequence[TimePoint],
+    *,
+    start: date,
+    end: date,
 ) -> Delta:
     return _delta_between(
         points,

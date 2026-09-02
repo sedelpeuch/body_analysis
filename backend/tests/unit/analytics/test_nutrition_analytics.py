@@ -1,21 +1,25 @@
 """Tests de la fenêtre alimentaire et des aliments récurrents — spec 5.6."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
-from app.analytics.nutrition import NutritionEntryInput, compute_eating_window, compute_top_foods
+from app.analytics.nutrition import (
+    NutritionEntryInput,
+    compute_eating_window,
+    compute_top_foods,
+)
 
 
 def test_compute_eating_window_buckets_by_local_hour() -> None:
     entries = [
         NutritionEntryInput(
-            consumed_at=datetime(2026, 7, 1, 6, 0, tzinfo=timezone.utc),
+            consumed_at=datetime(2026, 7, 1, 6, 0, tzinfo=UTC),
             food_name="Avoine",
             calories=350.0,
         ),
         NutritionEntryInput(
-            consumed_at=datetime(2026, 7, 1, 6, 30, tzinfo=timezone.utc),
+            consumed_at=datetime(2026, 7, 1, 6, 30, tzinfo=UTC),
             food_name="Café",
             calories=5.0,
         ),
@@ -37,9 +41,9 @@ def test_compute_eating_window_on_empty_entries_still_returns_24_buckets() -> No
 
 def test_compute_top_foods_ranks_by_frequency() -> None:
     entries = [
-        NutritionEntryInput(datetime(2026, 1, 1, tzinfo=timezone.utc), "Poulet", 200.0),
-        NutritionEntryInput(datetime(2026, 1, 2, tzinfo=timezone.utc), "Poulet", 210.0),
-        NutritionEntryInput(datetime(2026, 1, 3, tzinfo=timezone.utc), "Riz", 180.0),
+        NutritionEntryInput(datetime(2026, 1, 1, tzinfo=UTC), "Poulet", 200.0),
+        NutritionEntryInput(datetime(2026, 1, 2, tzinfo=UTC), "Poulet", 210.0),
+        NutritionEntryInput(datetime(2026, 1, 3, tzinfo=UTC), "Riz", 180.0),
     ]
 
     top = compute_top_foods(entries, limit=10)
@@ -52,7 +56,7 @@ def test_compute_top_foods_ranks_by_frequency() -> None:
 
 def test_compute_top_foods_respects_limit() -> None:
     entries = [
-        NutritionEntryInput(datetime(2026, 1, i + 1, tzinfo=timezone.utc), f"Aliment {i}", 100.0)
+        NutritionEntryInput(datetime(2026, 1, i + 1, tzinfo=UTC), f"Aliment {i}", 100.0)
         for i in range(5)
     ]
 

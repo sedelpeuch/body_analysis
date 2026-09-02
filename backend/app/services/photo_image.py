@@ -73,7 +73,9 @@ def normalize_orientation(data: bytes) -> NormalizedImage:
         )
 
 
-def make_derivative(normalized: bytes, *, max_dimension: int, blur: bool = False) -> bytes:
+def make_derivative(
+    normalized: bytes, *, max_dimension: int, blur: bool = False
+) -> bytes:
     """Redimensionne sans jamais agrandir, et floute optionnellement.
 
     Le flou n'est jamais mis en cache par l'appelant : c'est un rendu à la

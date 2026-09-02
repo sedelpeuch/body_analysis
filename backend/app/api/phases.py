@@ -30,7 +30,9 @@ async def get_current_phase(
 
 
 @router.get("/{phase_id}", response_model=PhaseOut)
-async def get_phase(phase_id: int, session: AsyncSession = Depends(get_session)) -> PhaseOut:
+async def get_phase(
+    phase_id: int, session: AsyncSession = Depends(get_session)
+) -> PhaseOut:
     phase = await phases_service.get_phase(session, phase_id)
     return PhaseOut.model_validate(phase)
 

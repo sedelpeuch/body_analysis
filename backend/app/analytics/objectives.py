@@ -47,7 +47,11 @@ class ObjectiveCheck:
 
 
 def evaluate_objective(
-    *, phase_kind: PhaseKind, metric: Metric, target: float, current: float | None
+    *,
+    phase_kind: PhaseKind,
+    metric: Metric,
+    target: float,
+    current: float | None,
 ) -> ObjectiveCheck:
     direction = achievement_direction(phase_kind, metric)
     if current is None:

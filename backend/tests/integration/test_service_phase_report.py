@@ -1,7 +1,7 @@
 """Tests d'intégration du rapport de phase — assemble deltas, composition
 et objectifs autour de mesures et d'un journal alimentaire réels."""
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 from sqlalchemy import text
@@ -29,7 +29,7 @@ async def test_get_phase_report_computes_metrics_and_objective_status(
         [
             BodyMeasurement(
                 source_uuid="rpt-1",
-                measured_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+                measured_at=datetime(2026, 1, 1, tzinfo=UTC),
                 weight_kg=80.0,
                 body_fat_pct=25.0,
                 body_fat_mass_kg=22.0,
@@ -38,7 +38,7 @@ async def test_get_phase_report_computes_metrics_and_objective_status(
             ),
             BodyMeasurement(
                 source_uuid="rpt-2",
-                measured_at=datetime(2026, 3, 1, tzinfo=timezone.utc),
+                measured_at=datetime(2026, 3, 1, tzinfo=UTC),
                 weight_kg=78.0,
                 body_fat_pct=22.0,
                 body_fat_mass_kg=19.0,
@@ -47,17 +47,17 @@ async def test_get_phase_report_computes_metrics_and_objective_status(
             ),
             NutritionEntry(
                 source_uuid="rpt-3",
-                consumed_at=datetime(2026, 1, 15, 12, tzinfo=timezone.utc),
+                consumed_at=datetime(2026, 1, 15, 12, tzinfo=UTC),
                 food_name="Repas",
                 calories=2200.0,
             ),
             NutritionEntry(
                 source_uuid="rpt-4",
-                consumed_at=datetime(2026, 2, 15, 12, tzinfo=timezone.utc),
+                consumed_at=datetime(2026, 2, 15, 12, tzinfo=UTC),
                 food_name="Repas",
                 calories=2400.0,
             ),
-        ]
+        ],
     )
     await session.commit()
     await session.refresh(phase)

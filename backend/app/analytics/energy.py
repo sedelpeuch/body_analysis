@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
-from typing import Mapping, Sequence
 
 KCAL_PER_KG = 7700
 MIN_LOGGED_DAYS = 21
@@ -49,7 +49,8 @@ def _linear_regression_slope(points: Sequence[tuple[date, float]]) -> float:
 
 
 def estimate_tdee(
-    intakes: Sequence[DailyIntake], weigh_ins: Sequence[WeighIn]
+    intakes: Sequence[DailyIntake],
+    weigh_ins: Sequence[WeighIn],
 ) -> TdeeEstimate:
     logged = [entry for entry in intakes if entry.calories is not None]
     weighed = [weigh_in for weigh_in in weigh_ins if weigh_in.weight_kg is not None]
@@ -71,7 +72,7 @@ def estimate_tdee(
 
     mean_intake = sum(entry.calories for entry in logged) / len(logged)
     slope = _linear_regression_slope(
-        [(weigh_in.day, weigh_in.weight_kg) for weigh_in in weighed]
+        [(weigh_in.day, weigh_in.weight_kg) for weigh_in in weighed],
     )
     tdee = mean_intake - slope * KCAL_PER_KG
     return TdeeEstimate(
@@ -130,6 +131,6 @@ def compute_energy_balance(
                 intake_kcal=intake.calories,
                 expenditure_kcal=expenditure,
                 balance_kcal=balance,
-            )
+            ),
         )
     return result

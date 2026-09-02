@@ -47,8 +47,14 @@ def test_compute_session_volume_on_empty_sets() -> None:
 
 def test_compute_progression_returns_one_point_per_session() -> None:
     sessions = [
-        (date(2026, 1, 1), [StrengthSetInput(idx=0, reps=10, weight_kg=50.0, duration_s=30.0)]),
-        (date(2026, 1, 8), [StrengthSetInput(idx=0, reps=10, weight_kg=55.0, duration_s=30.0)]),
+        (
+            date(2026, 1, 1),
+            [StrengthSetInput(idx=0, reps=10, weight_kg=50.0, duration_s=30.0)],
+        ),
+        (
+            date(2026, 1, 8),
+            [StrengthSetInput(idx=0, reps=10, weight_kg=55.0, duration_s=30.0)],
+        ),
     ]
 
     progression = compute_progression(sessions)

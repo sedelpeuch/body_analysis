@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Sequence
 
 _TRIMP_SCALE = 0.64
 _TRIMP_EXPONENT = 1.92
@@ -72,9 +72,13 @@ def compute_acute_chronic(daily_loads: Sequence[LoadPoint]) -> list[LoadBalance]
 
     for point in ordered:
         acute_days = [point.day - timedelta(days=i) for i in range(_ACUTE_WINDOW_DAYS)]
-        chronic_days = [point.day - timedelta(days=i) for i in range(_CHRONIC_WINDOW_DAYS)]
+        chronic_days = [
+            point.day - timedelta(days=i) for i in range(_CHRONIC_WINDOW_DAYS)
+        ]
         acute = sum(load_by_day.get(d, 0.0) for d in acute_days) / _ACUTE_WINDOW_DAYS
-        chronic = sum(load_by_day.get(d, 0.0) for d in chronic_days) / _CHRONIC_WINDOW_DAYS
+        chronic = (
+            sum(load_by_day.get(d, 0.0) for d in chronic_days) / _CHRONIC_WINDOW_DAYS
+        )
         ratio = acute / chronic if chronic > 0 else None
         balances.append(LoadBalance(point.day, acute, chronic, ratio))
 
@@ -88,7 +92,9 @@ class CardiacDrift:
     drift_pct: float | None
 
 
-def compute_cardiac_drift(samples: Sequence[tuple[datetime, int | None]]) -> CardiacDrift:
+def compute_cardiac_drift(
+    samples: Sequence[tuple[datetime, int | None]],
+) -> CardiacDrift:
     valid = sorted((s for s in samples if s[1] is not None), key=lambda s: s[0])
     if len(valid) < 2:
         return CardiacDrift(None, None, None)

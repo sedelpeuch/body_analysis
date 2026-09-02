@@ -25,7 +25,9 @@ async def get_timeseries(
     resolution: str = Query(default="raw"),
 ):
     metric_list = [m.strip() for m in metrics.split(",") if m.strip()]
-    series = await body_service.get_timeseries(session, date_range, metric_list, resolution)
+    series = await body_service.get_timeseries(
+        session, date_range, metric_list, resolution
+    )
     return {
         metric: [TimeseriesPointOut.model_validate(p) for p in points]
         for metric, points in series.items()

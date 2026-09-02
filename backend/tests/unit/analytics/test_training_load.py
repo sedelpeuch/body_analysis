@@ -1,6 +1,6 @@
 """Tests de la charge d'entraînement — spec 5.4."""
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
@@ -13,7 +13,7 @@ from app.analytics.training_load import (
     compute_trimp,
 )
 
-T0 = datetime(2026, 1, 1, 8, 0, tzinfo=timezone.utc)
+T0 = datetime(2026, 1, 1, 8, 0, tzinfo=UTC)
 
 
 def test_compute_trimp_matches_hand_derived_value() -> None:
@@ -32,7 +32,11 @@ def test_compute_trimp_matches_hand_derived_value() -> None:
 
 def test_compute_trimp_is_none_without_resting_or_max_hr() -> None:
     session = SessionLoadInput(
-        workout_id=1, started_at=T0, samples=[(T0, 150)], resting_hr=None, max_hr=190
+        workout_id=1,
+        started_at=T0,
+        samples=[(T0, 150)],
+        resting_hr=None,
+        max_hr=190,
     )
 
     assert compute_trimp(session).trimp is None
@@ -40,7 +44,11 @@ def test_compute_trimp_is_none_without_resting_or_max_hr() -> None:
 
 def test_compute_trimp_is_none_without_enough_samples() -> None:
     session = SessionLoadInput(
-        workout_id=1, started_at=T0, samples=[(T0, 150)], resting_hr=50, max_hr=190
+        workout_id=1,
+        started_at=T0,
+        samples=[(T0, 150)],
+        resting_hr=50,
+        max_hr=190,
     )
 
     assert compute_trimp(session).trimp is None
@@ -48,7 +56,9 @@ def test_compute_trimp_is_none_without_enough_samples() -> None:
 
 def test_compute_acute_chronic_averages_over_7_and_28_days() -> None:
     start = date(2026, 1, 1)
-    daily_loads = [LoadPoint(day=start + timedelta(days=i), load=100.0) for i in range(28)]
+    daily_loads = [
+        LoadPoint(day=start + timedelta(days=i), load=100.0) for i in range(28)
+    ]
 
     balances = compute_acute_chronic(daily_loads)
     last = balances[-1]
@@ -60,8 +70,12 @@ def test_compute_acute_chronic_averages_over_7_and_28_days() -> None:
 
 def test_compute_acute_chronic_ratio_above_one_signals_spike() -> None:
     start = date(2026, 1, 1)
-    daily_loads = [LoadPoint(day=start + timedelta(days=i), load=50.0) for i in range(21)]
-    daily_loads += [LoadPoint(day=start + timedelta(days=i), load=150.0) for i in range(21, 28)]
+    daily_loads = [
+        LoadPoint(day=start + timedelta(days=i), load=50.0) for i in range(21)
+    ]
+    daily_loads += [
+        LoadPoint(day=start + timedelta(days=i), load=150.0) for i in range(21, 28)
+    ]
 
     balances = {b.day: b for b in compute_acute_chronic(daily_loads)}
     last_day = start + timedelta(days=27)

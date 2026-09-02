@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Sequence
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,7 +49,7 @@ def compute_splits(
             distance_m = target - seg_start_dist
             pace = duration_s / (distance_m / 1000) if distance_m > 0 else None
             splits.append(
-                Split(index, distance_m, duration_s, pace, _mean(hr_acc))
+                Split(index, distance_m, duration_s, pace, _mean(hr_acc)),
             )
             index += 1
             seg_start_t = cross_t

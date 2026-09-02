@@ -50,7 +50,8 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(RequestValidationError)
     async def _request_validation_error(
-        request: Request, exc: RequestValidationError
+        request: Request,
+        exc: RequestValidationError,
     ) -> JSONResponse:
         errors = exc.errors()
         return _problem(
@@ -63,7 +64,8 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(StarletteHTTPException)
     async def _starlette_http_exception(
-        request: Request, exc: StarletteHTTPException
+        request: Request,
+        exc: StarletteHTTPException,
     ) -> JSONResponse:
         return _problem(
             request,

@@ -55,7 +55,12 @@ class PayloadTooLargeError(DomainError):
 
 
 def _problem(
-    request: Request, *, status_code: int, title: str, detail: str, **extra: object
+    request: Request,
+    *,
+    status_code: int,
+    title: str,
+    detail: str,
+    **extra: object,
 ) -> JSONResponse:
     body = {
         "type": "about:blank",
@@ -88,7 +93,8 @@ def register_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(RequestValidationError)
     async def _validation_error(
-        request: Request, exc: RequestValidationError
+        request: Request,
+        exc: RequestValidationError,
     ) -> JSONResponse:
         return _problem(
             request,
@@ -100,7 +106,8 @@ def register_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(StarletteHTTPException)
     async def _http_exception(
-        request: Request, exc: StarletteHTTPException
+        request: Request,
+        exc: StarletteHTTPException,
     ) -> JSONResponse:
         return _problem(
             request,

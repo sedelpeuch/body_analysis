@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Sequence
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,5 +40,7 @@ def compute_records(workouts: Sequence[WorkoutSummaryInput]) -> list[RecordEntry
         if not eligible:
             continue
         best = max(eligible, key=lambda w: getattr(w, field))
-        records.append(RecordEntry(label, best.id, getattr(best, field), best.started_at))
+        records.append(
+            RecordEntry(label, best.id, getattr(best, field), best.started_at)
+        )
     return records

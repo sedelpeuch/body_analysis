@@ -9,7 +9,6 @@ from datetime import date, timedelta
 import pytest
 
 from app.analytics.energy import (
-    KCAL_PER_KG,
     MIN_LOGGED_DAYS,
     MIN_WEIGH_INS,
     DailyBmr,
@@ -84,11 +83,14 @@ def test_estimate_tdee_ignores_null_intake_days_in_mean() -> None:
     zéro calorie — sinon la moyenne s'effondre artificiellement."""
     start = date(2026, 1, 1)
     intakes = [
-        DailyIntake(day=start + timedelta(days=i), calories=2000.0 if i % 2 == 0 else None)
+        DailyIntake(
+            day=start + timedelta(days=i), calories=2000.0 if i % 2 == 0 else None
+        )
         for i in range(40)
     ]
     weigh_ins = [
-        WeighIn(day=start + timedelta(days=i), weight_kg=80.0) for i in range(MIN_WEIGH_INS + 2)
+        WeighIn(day=start + timedelta(days=i), weight_kg=80.0)
+        for i in range(MIN_WEIGH_INS + 2)
     ]
 
     result = estimate_tdee(intakes, weigh_ins)
@@ -141,7 +143,9 @@ def test_compute_energy_balance_defaults_missing_workout_calories_to_zero() -> N
     ce n'est pas une mesure manquante — cf. contrainte globale du plan."""
     day = date(2026, 1, 1)
     balance = compute_energy_balance(
-        [DailyIntake(day=day, calories=2000.0)], [DailyBmr(day=day, bmr_kcal=1500.0)], {}
+        [DailyIntake(day=day, calories=2000.0)],
+        [DailyBmr(day=day, bmr_kcal=1500.0)],
+        {},
     )
 
     assert balance[0].expenditure_kcal == 1500.0
@@ -152,7 +156,9 @@ def test_compute_energy_balance_expenditure_is_none_without_bmr() -> None:
     doit jamais être devinée : elle reste None."""
     day = date(2026, 1, 1)
     balance = compute_energy_balance(
-        [DailyIntake(day=day, calories=2000.0)], [DailyBmr(day=day, bmr_kcal=None)], {}
+        [DailyIntake(day=day, calories=2000.0)],
+        [DailyBmr(day=day, bmr_kcal=None)],
+        {},
     )
 
     assert balance[0].expenditure_kcal is None

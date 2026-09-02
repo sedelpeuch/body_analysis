@@ -41,7 +41,8 @@ def _measurement_query(date_range: DateRange):
 
 
 async def list_measurements(
-    session: AsyncSession, date_range: DateRange
+    session: AsyncSession,
+    date_range: DateRange,
 ) -> list[MeasurementRow]:
     rows = (await session.execute(_measurement_query(date_range))).scalars().all()
     return [
@@ -66,10 +67,14 @@ class TimeseriesPoint:
 
 
 async def _raw_series(
-    session: AsyncSession, date_range: DateRange, column: str
+    session: AsyncSession,
+    date_range: DateRange,
+    column: str,
 ) -> list[TimeseriesPoint]:
-    query = select(BodyMeasurement.measured_at, getattr(BodyMeasurement, column)).order_by(
-        BodyMeasurement.measured_at
+    query = select(
+        BodyMeasurement.measured_at, getattr(BodyMeasurement, column)
+    ).order_by(
+        BodyMeasurement.measured_at,
     )
     if date_range.start is not None:
         query = query.where(BodyMeasurement.measured_at >= date_range.start)
@@ -80,7 +85,9 @@ async def _raw_series(
 
 
 async def _daily_series(
-    session: AsyncSession, date_range: DateRange, column: str
+    session: AsyncSession,
+    date_range: DateRange,
+    column: str,
 ) -> list[TimeseriesPoint]:
     where_parts: list[str] = []
     params: dict[str, date] = {}
@@ -125,13 +132,15 @@ class CalendarCell:
     value: float | None
 
 
-async def get_calendar(session: AsyncSession, metric: str, year: int) -> list[CalendarCell]:
+async def get_calendar(
+    session: AsyncSession, metric: str, year: int
+) -> list[CalendarCell]:
     if metric not in METRIC_COLUMNS:
         raise ValidationError(f"métrique inconnue : {metric!r}")
     column = METRIC_COLUMNS[metric]
     sql = text(
         f"SELECT day, {column} FROM mv_daily_body "
-        "WHERE extract(year FROM day) = :year ORDER BY day"
+        "WHERE extract(year FROM day) = :year ORDER BY day",
     )
     rows = (await session.execute(sql, {"year": year})).all()
     return [CalendarCell(day=row.day, value=getattr(row, column)) for row in rows]

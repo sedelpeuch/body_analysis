@@ -9,9 +9,17 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.analytics.composition import CompositionPoint, RecompositionResult, compute_recomposition
+from app.analytics.composition import (
+    CompositionPoint,
+    RecompositionResult,
+    compute_recomposition,
+)
 from app.analytics.deltas import TimePoint, compute_change_between
-from app.analytics.objectives import Metric, PhaseMetricReport, build_phase_metric_report
+from app.analytics.objectives import (
+    Metric,
+    PhaseMetricReport,
+    build_phase_metric_report,
+)
 from app.errors import ConflictError, NotFoundError, ValidationError
 from app.models import BodyMeasurement, Phase
 from app.schemas.phases import PhaseCreate, PhaseUpdate
@@ -32,20 +40,26 @@ class PhaseReport:
 
 
 async def _measurement_time_points(
-    session: AsyncSession, column: str
+    session: AsyncSession,
+    column: str,
 ) -> list[TimePoint]:
     rows = (
         await session.execute(
-            select(BodyMeasurement.measured_at, getattr(BodyMeasurement, column)).order_by(
-                BodyMeasurement.measured_at
-            )
+            select(
+                BodyMeasurement.measured_at, getattr(BodyMeasurement, column)
+            ).order_by(
+                BodyMeasurement.measured_at,
+            ),
         )
     ).all()
     return [TimePoint(at=row[0].date(), value=row[1]) for row in rows]
 
 
 async def get_phase_report(
-    session: AsyncSession, phase_id: int, *, today: date
+    session: AsyncSession,
+    phase_id: int,
+    *,
+    today: date,
 ) -> PhaseReport:
     phase = await get_phase(session, phase_id)
     end_date = min(phase.ends_on, today)
@@ -62,14 +76,14 @@ async def get_phase_report(
                 days_elapsed=days_elapsed,
                 phase_kind=phase.kind,
                 target=getattr(phase, target_attr),
-            )
+            ),
         )
 
     average_calories = (
         await session.execute(
             text(
                 "SELECT avg(calories) AS avg_calories FROM mv_daily_nutrition "
-                "WHERE day >= :start AND day <= :end"
+                "WHERE day >= :start AND day <= :end",
             ),
             {"start": phase.starts_on, "end": end_date},
         )
@@ -110,7 +124,7 @@ async def get_current_phase(session: AsyncSession, today: date) -> Phase | None:
         select(Phase)
         .where(Phase.starts_on <= today)
         .order_by(Phase.starts_on.desc(), Phase.id.desc())
-        .limit(1)
+        .limit(1),
     )
     return result.scalar_one_or_none()
 
@@ -145,7 +159,9 @@ async def create_phase(session: AsyncSession, payload: PhaseCreate) -> Phase:
 
 
 async def update_phase(
-    session: AsyncSession, phase_id: int, payload: PhaseUpdate
+    session: AsyncSession,
+    phase_id: int,
+    payload: PhaseUpdate,
 ) -> Phase:
     phase = await get_phase(session, phase_id)
     for field_name, value in payload.model_dump(exclude_unset=True).items():
@@ -161,7 +177,9 @@ async def update_phase(
         await session.commit()
     except IntegrityError as error:
         await session.rollback()
-        raise ConflictError("La mise à jour de phase est en conflit avec les données.") from error
+        raise ConflictError(
+            "La mise à jour de phase est en conflit avec les données."
+        ) from error
     await session.refresh(phase)
     return phase
 

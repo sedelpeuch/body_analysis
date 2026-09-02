@@ -5,13 +5,13 @@ franchit 1000 m entre t=330 (990 m) et t=340 (1020 m). Le passage au km
 s'interpole à t = 330 + 10*(1000-990)/(1020-990) = 333.333... s.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from app.analytics.splits import compute_splits
 
-T0 = datetime(2026, 1, 1, 8, 0, tzinfo=timezone.utc)
+T0 = datetime(2026, 1, 1, 8, 0, tzinfo=UTC)
 
 
 def _constant_speed_samples(n: int, *, speed_mps: float, step_s: int):

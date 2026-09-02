@@ -1,6 +1,6 @@
 """Tests d'intégration de l'API corps, via ASGITransport."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -13,13 +13,15 @@ from app.models import BodyMeasurement
 pytestmark = pytest.mark.asyncio
 
 
-async def test_get_measurements_returns_json_with_null_gaps(session: AsyncSession) -> None:
+async def test_get_measurements_returns_json_with_null_gaps(
+    session: AsyncSession,
+) -> None:
     session.add(
         BodyMeasurement(
             source_uuid="body-api-1-unique-2099",
-            measured_at=datetime(2099, 1, 1, tzinfo=timezone.utc),
+            measured_at=datetime(2099, 1, 1, tzinfo=UTC),
             weight_kg=80.0,
-        )
+        ),
     )
     await session.commit()
 
@@ -45,7 +47,8 @@ async def test_get_timeseries_rejects_unknown_metric() -> None:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get(
-            "/api/body/timeseries", params={"metrics": "inconnu"}
+            "/api/body/timeseries",
+            params={"metrics": "inconnu"},
         )
 
     assert response.status_code == 422
@@ -56,12 +59,14 @@ async def test_get_timeseries_daily_resolution(session: AsyncSession) -> None:
     session.add(
         BodyMeasurement(
             source_uuid="body-api-2-unique-2099",
-            measured_at=datetime(2098, 1, 1, tzinfo=timezone.utc),
+            measured_at=datetime(2098, 1, 1, tzinfo=UTC),
             weight_kg=79.0,
-        )
+        ),
     )
     await session.commit()
-    await session.execute(__import__("sqlalchemy").text("REFRESH MATERIALIZED VIEW mv_daily_body"))
+    await session.execute(
+        __import__("sqlalchemy").text("REFRESH MATERIALIZED VIEW mv_daily_body")
+    )
     await session.commit()
 
     app.dependency_overrides[get_session] = lambda: session

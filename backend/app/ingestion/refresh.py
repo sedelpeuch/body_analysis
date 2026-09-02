@@ -16,7 +16,9 @@ DAILY_VIEWS = (
 
 
 async def refresh_materialized_views(
-    session: AsyncSession, *, concurrently: bool = True
+    session: AsyncSession,
+    *,
+    concurrently: bool = True,
 ) -> None:
     """Rafraîchit les trois vues quotidiennes.
 

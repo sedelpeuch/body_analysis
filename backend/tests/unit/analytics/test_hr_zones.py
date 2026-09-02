@@ -4,11 +4,11 @@ Modèle à cinq zones par pourcentage de FC max, standard d'entraînement.
 max_hr=180 donne des bornes rondes : 108, 126, 144, 162.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from app.analytics.hr_zones import compute_hr_zone_times, hr_zone_boundaries
 
-T0 = datetime(2026, 1, 1, 8, 0, tzinfo=timezone.utc)
+T0 = datetime(2026, 1, 1, 8, 0, tzinfo=UTC)
 
 
 def test_hr_zone_boundaries_for_max_180() -> None:

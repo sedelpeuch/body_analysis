@@ -25,9 +25,9 @@ from app.ingestion.samsung.loader import (
     upsert_oxygen_saturation_readings,
     upsert_phases,
     upsert_respiratory_rate_readings,
+    upsert_skin_temperature_readings,
     upsert_sleep_sessions,
     upsert_sleep_stages,
-    upsert_skin_temperature_readings,
     upsert_step_daily_trends,
     upsert_stress_readings,
     upsert_workout_bundle,
@@ -98,13 +98,17 @@ def _exercise_dir(root: Path) -> Path | None:
 
 def _latest_json_dir(root: Path, prefix: str) -> Path | None:
     candidates = sorted(
-        path for path in root.glob(f"{prefix}*") if path.is_dir() and path.name.startswith(prefix)
+        path
+        for path in root.glob(f"{prefix}*")
+        if path.is_dir() and path.name.startswith(prefix)
     )
     if not candidates:
         jsons_root = root / "jsons"
         if jsons_root.is_dir():
             candidates = sorted(
-                path for path in jsons_root.glob(f"{prefix}*") if path.is_dir() and path.name.startswith(prefix)
+                path
+                for path in jsons_root.glob(f"{prefix}*")
+                if path.is_dir() and path.name.startswith(prefix)
             )
     return candidates[-1] if candidates else None
 
@@ -122,7 +126,8 @@ def discover_source(root: Path) -> SamsungSource:
         food_csv=_latest(root, "com.samsung.health.food_intake.*.csv"),
         nutrition_csv=_latest(root, "com.samsung.health.nutrition.*.csv"),
         calories_burned_csv=_latest(
-            root, "com.samsung.shealth.calories_burned.details.*.csv"
+            root,
+            "com.samsung.shealth.calories_burned.details.*.csv",
         ),
         sleep_csv=_latest(root, "com.samsung.shealth.sleep.*.csv"),
         sleep_stage_csv=_latest(root, "com.samsung.health.sleep_stage.*.csv"),
@@ -131,19 +136,24 @@ def discover_source(root: Path) -> SamsungSource:
         heart_rate_csv=_latest(root, "com.samsung.shealth.tracker.heart_rate.*.csv"),
         stress_csv=_latest(root, "com.samsung.shealth.stress.*.csv"),
         day_summary_csv=_latest(
-            root, "com.samsung.shealth.activity.day_summary.*.csv"
+            root,
+            "com.samsung.shealth.activity.day_summary.*.csv",
         ),
         step_daily_trend_csv=_latest(
-            root, "com.samsung.shealth.step_daily_trend.*.csv"
+            root,
+            "com.samsung.shealth.step_daily_trend.*.csv",
         ),
         oxygen_saturation_csv=_latest(
-            root, "com.samsung.shealth.tracker.oxygen_saturation.*.csv"
+            root,
+            "com.samsung.shealth.tracker.oxygen_saturation.*.csv",
         ),
         respiratory_rate_csv=_latest(
-            root, "com.samsung.health.respiratory_rate.*.csv"
+            root,
+            "com.samsung.health.respiratory_rate.*.csv",
         ),
         skin_temperature_csv=_latest(
-            root, "com.samsung.health.skin_temperature.*.csv"
+            root,
+            "com.samsung.health.skin_temperature.*.csv",
         ),
         exercise_csv=exercise_candidates[-1] if exercise_candidates else None,
         exercise_dir=_exercise_dir(root),
@@ -165,7 +175,9 @@ async def run_ingestion(
     trace en base ne se perd jamais.
     """
     run = IngestionRun(
-        kind=kind, source_name=source_name, status=IngestionStatus.RUNNING
+        kind=kind,
+        source_name=source_name,
+        status=IngestionStatus.RUNNING,
     )
     session.add(run)
     await session.commit()
@@ -182,7 +194,8 @@ async def run_ingestion(
                 if record is not None
             ]
             counts["body_measurements"] = await upsert_body_measurements(
-                session, records
+                session,
+                records,
             )
 
         if source.food_csv is not None:
@@ -195,7 +208,8 @@ async def run_ingestion(
                 if entry is not None
             ]
             counts["nutrition_entries"] = await upsert_nutrition_entries(
-                session, entries
+                session,
+                entries,
             )
 
         if source.nutrition_csv is not None:
@@ -208,7 +222,8 @@ async def run_ingestion(
                 if detail is not None
             ]
             counts["nutrition_details"] = await upsert_nutrition_details(
-                session, details
+                session,
+                details,
             )
 
         if source.calories_burned_csv is not None:
@@ -221,20 +236,21 @@ async def run_ingestion(
                 if expenditure is not None
             ]
             counts["energy_expenditures"] = await upsert_energy_expenditures(
-                session, expenditures
+                session,
+                expenditures,
             )
 
         if source.sleep_csv is not None:
             sessions = [
                 session_record
                 for session_record in (
-                    map_sleep_session(row)
-                    for row in read_samsung_csv(source.sleep_csv)
+                    map_sleep_session(row) for row in read_samsung_csv(source.sleep_csv)
                 )
                 if session_record is not None
             ]
             counts["sleep_sessions"] = await upsert_sleep_sessions(
-                session, sessions
+                session,
+                sessions,
             )
 
         if source.sleep_stage_csv is not None:
@@ -250,7 +266,7 @@ async def run_ingestion(
 
         if source.hrv_csv is not None:
             hrv_rows = []
-            hrv_base = source.hrv_dir or Path(".")
+            hrv_base = source.hrv_dir or Path()
             for row in read_samsung_csv(source.hrv_csv):
                 record = map_hrv_reading(row, hrv_base)
                 if record is not None:
@@ -267,7 +283,8 @@ async def run_ingestion(
                 if record is not None
             ]
             counts["heart_rate_readings"] = await upsert_heart_rate_readings(
-                session, heart_rates
+                session,
+                heart_rates,
             )
 
         if source.stress_csv is not None:
@@ -290,8 +307,11 @@ async def run_ingestion(
                 )
                 if record is not None
             ]
-            counts["oxygen_saturation_readings"] = await upsert_oxygen_saturation_readings(
-                session, o2
+            counts[
+                "oxygen_saturation_readings"
+            ] = await upsert_oxygen_saturation_readings(
+                session,
+                o2,
             )
 
         if source.respiratory_rate_csv is not None:
@@ -303,8 +323,11 @@ async def run_ingestion(
                 )
                 if record is not None
             ]
-            counts["respiratory_rate_readings"] = await upsert_respiratory_rate_readings(
-                session, rr
+            counts[
+                "respiratory_rate_readings"
+            ] = await upsert_respiratory_rate_readings(
+                session,
+                rr,
             )
 
         if source.skin_temperature_csv is not None:
@@ -316,8 +339,11 @@ async def run_ingestion(
                 )
                 if record is not None
             ]
-            counts["skin_temperature_readings"] = await upsert_skin_temperature_readings(
-                session, skin
+            counts[
+                "skin_temperature_readings"
+            ] = await upsert_skin_temperature_readings(
+                session,
+                skin,
             )
 
         if source.day_summary_csv is not None:
@@ -330,7 +356,8 @@ async def run_ingestion(
                 if record is not None
             ]
             counts["daily_activities"] = await upsert_daily_activities(
-                session, daily_activity
+                session,
+                daily_activity,
             )
 
         if source.step_daily_trend_csv is not None:
@@ -343,19 +370,23 @@ async def run_ingestion(
                 if record is not None
             ]
             counts["step_daily_trends"] = await upsert_step_daily_trends(
-                session, step_trends
+                session,
+                step_trends,
             )
 
         if source.exercise_csv is not None and source.exercise_dir is not None:
             counts.update(
                 await _ingest_workouts(
-                    session, source.exercise_csv, source.exercise_dir
-                )
+                    session,
+                    source.exercise_csv,
+                    source.exercise_dir,
+                ),
             )
 
         if source.phases_json is not None:
             counts["phases"] = await upsert_phases(
-                session, read_phases(source.phases_json)
+                session,
+                read_phases(source.phases_json),
             )
 
         await refresh_materialized_views(session, concurrently=False)
@@ -376,7 +407,9 @@ async def run_ingestion(
 
 
 async def _ingest_workouts(
-    session: AsyncSession, exercise_csv: Path, exercise_dir: Path
+    session: AsyncSession,
+    exercise_csv: Path,
+    exercise_dir: Path,
 ) -> dict[str, int]:
     """Traite les séances une par une pour ne jamais tenir les 2,8 M
     d'échantillons en mémoire simultanément."""

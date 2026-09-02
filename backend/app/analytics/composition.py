@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
-from typing import Sequence
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,7 +21,9 @@ class RecompositionResult:
 
 
 def _nearest_value(
-    points: Sequence[CompositionPoint], target: date, field: str
+    points: Sequence[CompositionPoint],
+    target: date,
+    field: str,
 ) -> float | None:
     candidates = [p for p in points if getattr(p, field) is not None and p.at <= target]
     if not candidates:
@@ -30,7 +32,10 @@ def _nearest_value(
 
 
 def compute_recomposition(
-    points: Sequence[CompositionPoint], *, start: date, end: date
+    points: Sequence[CompositionPoint],
+    *,
+    start: date,
+    end: date,
 ) -> RecompositionResult:
     fat_start = _nearest_value(points, start, "fat_mass_kg")
     fat_end = _nearest_value(points, end, "fat_mass_kg")
