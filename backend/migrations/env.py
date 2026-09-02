@@ -12,7 +12,12 @@ from app.config import settings
 from app.models import Base
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Ne pas écraser une URL déjà fournie par l'appelant (les tests d'intégration
+# pointent Alembic sur une base de test via Config.set_main_option avant
+# d'invoquer upgrade/downgrade) ; sinon retomber sur la configuration de
+# l'application.
+if not config.get_main_option("sqlalchemy.url"):
+    config.set_main_option("sqlalchemy.url", settings.database_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
