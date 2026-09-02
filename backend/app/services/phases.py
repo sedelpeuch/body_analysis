@@ -2,18 +2,117 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from dataclasses import dataclass
+from datetime import date
+
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.analytics.composition import CompositionPoint, RecompositionResult, compute_recomposition
+from app.analytics.deltas import TimePoint, compute_change_between
+from app.analytics.objectives import Metric, PhaseMetricReport, build_phase_metric_report
 from app.errors import ConflictError, NotFoundError, ValidationError
-from app.models import Phase
+from app.models import BodyMeasurement, Phase
 from app.schemas.phases import PhaseCreate, PhaseUpdate
+
+_METRIC_COLUMN = {
+    Metric.WEIGHT: ("weight_kg", "weight_target_kg"),
+    Metric.BODY_FAT: ("body_fat_pct", "body_fat_target_pct"),
+    Metric.MUSCLE: ("skeletal_muscle_mass_kg", "skeletal_muscle_target_kg"),
+}
+
+
+@dataclass(frozen=True, slots=True)
+class PhaseReport:
+    phase: Phase
+    metrics: list[PhaseMetricReport]
+    average_calories_kcal: float | None
+    recomposition: RecompositionResult
+
+
+async def _measurement_time_points(
+    session: AsyncSession, column: str
+) -> list[TimePoint]:
+    rows = (
+        await session.execute(
+            select(BodyMeasurement.measured_at, getattr(BodyMeasurement, column)).order_by(
+                BodyMeasurement.measured_at
+            )
+        )
+    ).all()
+    return [TimePoint(at=row[0].date(), value=row[1]) for row in rows]
+
+
+async def get_phase_report(
+    session: AsyncSession, phase_id: int, *, today: date
+) -> PhaseReport:
+    phase = await get_phase(session, phase_id)
+    end_date = min(phase.ends_on, today)
+    days_elapsed = max((end_date - phase.starts_on).days, 0)
+
+    metrics: list[PhaseMetricReport] = []
+    for metric, (column, target_attr) in _METRIC_COLUMN.items():
+        points = await _measurement_time_points(session, column)
+        delta = compute_change_between(points, start=phase.starts_on, end=end_date)
+        metrics.append(
+            build_phase_metric_report(
+                metric=metric,
+                delta=delta,
+                days_elapsed=days_elapsed,
+                phase_kind=phase.kind,
+                target=getattr(phase, target_attr),
+            )
+        )
+
+    average_calories = (
+        await session.execute(
+            text(
+                "SELECT avg(calories) AS avg_calories FROM mv_daily_nutrition "
+                "WHERE day >= :start AND day <= :end"
+            ),
+            {"start": phase.starts_on, "end": end_date},
+        )
+    ).scalar_one()
+
+    fat_points_raw = await _measurement_time_points(session, "body_fat_mass_kg")
+    lean_points_raw = await _measurement_time_points(session, "fat_free_mass_kg")
+    lean_by_date = {p.at: p.value for p in lean_points_raw}
+    composition_points = [
+        CompositionPoint(
+            at=p.at,
+            fat_mass_kg=p.value,
+            lean_mass_kg=lean_by_date.get(p.at),
+        )
+        for p in fat_points_raw
+    ]
+    recomposition = compute_recomposition(
+        composition_points,
+        start=phase.starts_on,
+        end=end_date,
+    )
+
+    return PhaseReport(
+        phase=phase,
+        metrics=metrics,
+        average_calories_kcal=average_calories,
+        recomposition=recomposition,
+    )
 
 
 async def list_phases(session: AsyncSession) -> list[Phase]:
-    query = select(Phase).order_by(Phase.starts_on.desc(), Phase.id.desc())
+    query = select(Phase).order_by(Phase.starts_on.asc(), Phase.id.asc())
     return list((await session.execute(query)).scalars().all())
+
+
+async def get_current_phase(session: AsyncSession, today: date) -> Phase | None:
+    result = await session.execute(
+        select(Phase)
+        .where(Phase.starts_on <= today)
+        .order_by(Phase.starts_on.desc(), Phase.id.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
 
 
 async def get_phase(session: AsyncSession, phase_id: int) -> Phase:

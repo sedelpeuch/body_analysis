@@ -6,6 +6,7 @@ from datetime import date
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
+from app.analytics.objectives import Direction, Metric
 from app.models import PhaseKind
 
 
@@ -52,3 +53,42 @@ class PhaseOut(BaseModel):
     skeletal_muscle_target_kg: float | None
     daily_calories_target: int | None
     notes: str | None
+
+
+class ObjectiveCheckOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    metric: Metric
+    target: float
+    current: float | None
+    direction: Direction
+    achieved: bool | None
+    remaining: float | None
+
+
+class PhaseMetricReportOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    metric: Metric
+    start_value: float | None
+    end_value: float | None
+    change: float | None
+    change_pct: float | None
+    monthly_rate: float | None
+    objective: ObjectiveCheckOut | None
+
+
+class RecompositionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    fat_mass_delta_kg: float | None
+    lean_mass_delta_kg: float | None
+
+
+class PhaseReportOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    phase: PhaseOut
+    metrics: list[PhaseMetricReportOut]
+    average_calories_kcal: float | None
+    recomposition: RecompositionOut
