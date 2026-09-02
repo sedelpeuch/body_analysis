@@ -363,12 +363,15 @@ décomposition de la dépense énergétique telle que l'appareil la calcule, ce
 qui permet de **confronter l'estimation de la section 5.1 à une mesure
 directe** au lieu de la prendre pour argent comptant.
 
-**Réserve d'approvisionnement.** L'export complet ne contient **aucun**
-fichier `live_data` ni `location_data`, alors que son CSV de séances en
-référence 4 654. Les 452 Mo de données intra-séance du dossier de travail
-proviennent donc d'une autre source, à identifier : si les exports futurs ne
-les contiennent pas, la vue de séance détaillée reposera sur un instantané
-historique figé et non sur un flux entretenu.
+**Disposition réelle de l'export.** L'export complet fait 1,3 Go et compte
+88 093 JSON. Il contient bien les données intra-séance — 4 654 `live_data`,
+387 `location_data`, 302 `additional`, 2 698 `sensing_status` — mais les
+place sous `jsons/com.samsung.shealth.exercise/`, réparties en seize
+sous-répertoires nommés par le premier caractère hexadécimal du nom de
+fichier, tandis que les 87 CSV sont à la racine. Le dossier de travail
+historique n'est qu'une copie où ce répertoire a été remonté à la racine.
+**L'ingestion doit accepter les deux dispositions**, en cherchant d'abord
+sous `jsons/`.
 
 ## 6. API
 
@@ -598,6 +601,38 @@ orientation EXIF, séances antérieures à août 2024 désormais incluses).
 Docker Compose, quatre services : `db` (PostgreSQL 17), `minio`, `api`
 (uvicorn), `web` (nginx servant le build et proxifiant `/api`). Réseau local
 uniquement, sans authentification. Sauvegarde par `pg_dump` et `mc mirror`.
+
+## 11bis. Retrait de l'application Streamlit
+
+Le retrait intervient à l'étape 8 de la section 10, après que les chiffres du
+nouveau front ont été comparés à ceux de Streamlit sur des phases connues.
+Jamais avant : supprimer l'ancien avant que le nouveau le remplace et que la
+concordance soit établie priverait la bascule de son seul point de
+comparaison.
+
+Fichiers à supprimer :
+
+| Chemin | Remplacé par |
+| --- | --- |
+| `body_analysis/` (~5 150 lignes) | `backend/app/` et le front |
+| `reorganize_photos.py` | l'ingestion des photos |
+| `.streamlit/config.toml` | — |
+| `Dockerfile` | `backend/Dockerfile` et l'image du front |
+| `docker-compose.yml` | `compose.yaml` |
+| `pyproject.toml`, `poetry.lock` (racine) | `backend/pyproject.toml` sous `uv` |
+| `uv.lock` (racine) | `backend/uv.lock` |
+| `.dockerignore` | à réécrire pour les nouveaux contextes de build |
+
+`README.md` est à réécrire entièrement : il documente l'installation et le
+lancement de l'application Streamlit.
+
+**Intégration continue — trou à combler.** `.github/workflows/docker_build.yml`
+construit une image unique depuis le `Dockerfile` de la racine et la pousse
+sur GHCR. Le déploiement décrit en section 11 compte deux images
+applicatives, `api` et `web`. Le workflow doit donc construire les deux, ou
+être retiré si le déploiement se fait autrement. Cette section 11 ne disait
+rien de la chaîne d'intégration ; c'est une omission, à traiter avec le front
+et la bascule.
 
 ## 12. Hors périmètre, volontairement
 

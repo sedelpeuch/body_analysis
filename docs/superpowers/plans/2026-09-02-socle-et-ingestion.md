@@ -3306,11 +3306,12 @@ async def test_workout_children_are_replaced_not_appended(
 async def test_reingest_without_payloads_preserves_existing_children(
     session: AsyncSession,
 ) -> None:
-    """Régression : Samsung a cessé d'exporter les JSON par séance.
+    """Régression : un import incomplet ne doit rien détruire.
 
-    Un nouvel export référence toujours les séances mais leurs fichiers
-    live_data sont absents, donc le paquet arrive sans échantillon. Réingérer
-    ne doit PAS détruire ce qui est déjà en base."""
+    Le CSV de séances référence ses fichiers live_data, mais ceux-ci peuvent
+    manquer — archive mal extraite, téléchargement interrompu. Le paquet
+    arrive alors sans échantillon. Réingérer ne doit PAS détruire ce qui est
+    déjà en base."""
     workout = WorkoutRecord(
         source_uuid=UUID,
         started_at=datetime(2026, 2, 5, 19, 2, tzinfo=UTC),
@@ -3478,10 +3479,11 @@ async def upsert_workout_bundle(session: AsyncSession, bundle: WorkoutBundle) ->
     for model, records in children:
         if not records:
             # L'export courant n'apporte rien pour ce type : on PRÉSERVE
-            # l'existant. Samsung a cessé d'exporter les JSON par séance ;
-            # un remplacement inconditionnel détruirait les 2,8 M
-            # d'échantillons déjà en base au premier import d'un nouvel
-            # export.
+            # l'existant. Un fichier absent ou illisible ne doit jamais
+            # provoquer une suppression — extraction d'archive tronquée,
+            # téléchargement interrompu, variante d'export. Un remplacement
+            # inconditionnel détruirait les 2,8 M d'échantillons déjà en
+            # base au premier import incomplet.
             continue
         await session.execute(delete(model).where(model.workout_id == workout_id))
         rows = [
@@ -3913,6 +3915,33 @@ def test_finds_every_component(tmp_path: Path) -> None:
     assert source.phases_json is not None
 
 
+def test_finds_exercise_dir_under_jsons(tmp_path: Path) -> None:
+    """Disposition de l'export réel : 87 CSV à la racine, JSON sous jsons/."""
+    _touch(tmp_path / "jsons" / "com.samsung.shealth.exercise" / "1" / "a.json")
+
+    source = discover_source(tmp_path)
+
+    assert source.exercise_dir == tmp_path / "jsons" / "com.samsung.shealth.exercise"
+
+
+def test_finds_exercise_dir_at_root(tmp_path: Path) -> None:
+    """Disposition du dossier de travail historique, remonté à la racine."""
+    _touch(tmp_path / "com.samsung.shealth.exercise" / "1" / "a.json")
+
+    source = discover_source(tmp_path)
+
+    assert source.exercise_dir == tmp_path / "com.samsung.shealth.exercise"
+
+
+def test_prefers_jsons_layout_when_both_exist(tmp_path: Path) -> None:
+    _touch(tmp_path / "jsons" / "com.samsung.shealth.exercise" / "1" / "a.json")
+    _touch(tmp_path / "com.samsung.shealth.exercise" / "1" / "a.json")
+
+    source = discover_source(tmp_path)
+
+    assert source.exercise_dir == tmp_path / "jsons" / "com.samsung.shealth.exercise"
+
+
 def test_keeps_the_most_recent_export_of_each_kind(tmp_path: Path) -> None:
     _touch(tmp_path / "com.samsung.health.weight.20250101000000.csv")
     _touch(tmp_path / "com.samsung.health.weight.20260831162666.csv")
@@ -4071,6 +4100,11 @@ from app.ingestion.samsung.parsers import read_samsung_csv
 from app.models import IngestionRun, IngestionStatus
 
 EXERCISE_DIR_NAME = "com.samsung.shealth.exercise"
+
+# L'export réel place les JSON par enregistrement sous jsons/ ; le dossier de
+# travail historique les a remontés à la racine. Les deux dispositions sont
+# acceptées, dans cet ordre de priorité.
+EXERCISE_DIR_CANDIDATES = (("jsons", EXERCISE_DIR_NAME), (EXERCISE_DIR_NAME,))
 _EXERCISE_CSV_RE = re.compile(r"\Acom\.samsung\.shealth\.exercise\.\d{14}\.csv\Z")
 
 # Commiter tous les 100 paquets : 4 734 séances et leurs 2,8 M
@@ -4094,19 +4128,26 @@ def _latest(root: Path, pattern: str) -> Path | None:
     return matches[-1] if matches else None
 
 
+def _exercise_dir(root: Path) -> Path | None:
+    for parts in EXERCISE_DIR_CANDIDATES:
+        candidate = root.joinpath(*parts)
+        if candidate.is_dir():
+            return candidate
+    return None
+
+
 def discover_source(root: Path) -> SamsungSource:
     exercise_candidates = sorted(
         path
         for path in root.glob("com.samsung.shealth.exercise.*.csv")
         if path.is_file() and _EXERCISE_CSV_RE.match(path.name)
     )
-    exercise_dir = root / EXERCISE_DIR_NAME
     phases_json = root / "phases.json"
     return SamsungSource(
         weight_csv=_latest(root, "com.samsung.health.weight.*.csv"),
         food_csv=_latest(root, "com.samsung.health.food_intake.*.csv"),
         exercise_csv=exercise_candidates[-1] if exercise_candidates else None,
-        exercise_dir=exercise_dir if exercise_dir.is_dir() else None,
+        exercise_dir=_exercise_dir(root),
         phases_json=phases_json if phases_json.is_file() else None,
     )
 
