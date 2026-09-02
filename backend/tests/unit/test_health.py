@@ -12,3 +12,12 @@ def test_health_returns_ok() -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_core_routes_are_registered() -> None:
+    app = create_app()
+    included_routers = [
+        route for route in app.routes if type(route).__name__ == "_IncludedRouter"
+    ]
+
+    assert len(included_routers) >= 2
