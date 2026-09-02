@@ -544,7 +544,7 @@ def test_parse_aware_datetime_rejects_invalid(raw: object) -> None:
 def test_parse_epoch_millis() -> None:
     result = parse_epoch_millis(1644085620000)
 
-    assert result == datetime(2022, 2, 5, 20, 27, tzinfo=timezone.utc)
+    assert result == datetime(2022, 2, 5, 18, 27, tzinfo=timezone.utc)
 
 
 @pytest.mark.parametrize("raw", ["", None, "abc"])
@@ -2457,7 +2457,7 @@ def test_map_samples_reads_every_metric() -> None:
     samples = map_samples(load_json(resolve_json_path(EXERCISE_DIR, LIVE)))
 
     first = samples[0]
-    assert first.at == datetime(2022, 2, 5, 20, 27, tzinfo=timezone.utc)
+    assert first.at == datetime(2022, 2, 5, 18, 27, tzinfo=timezone.utc)
     assert first.heart_rate == 132
     assert first.speed_mps == 1.4444444
     assert first.distance_m == 87.73
@@ -2474,7 +2474,7 @@ def test_map_samples_deduplicates_on_timestamp_keeping_last() -> None:
     assert len(samples) == 2
     assert [s.at for s in samples] == sorted(s.at for s in samples)
     duplicated = next(
-        s for s in samples if s.at == datetime(2022, 2, 5, 20, 27, tzinfo=timezone.utc)
+        s for s in samples if s.at == datetime(2022, 2, 5, 18, 27, tzinfo=timezone.utc)
     )
     assert duplicated.heart_rate == 199
 
@@ -3303,6 +3303,33 @@ async def test_workout_children_are_replaced_not_appended(
     assert stored.heart_rate == 140
 
 
+async def test_reingest_without_payloads_preserves_existing_children(
+    session: AsyncSession,
+) -> None:
+    """Régression : Samsung a cessé d'exporter les JSON par séance.
+
+    Un nouvel export référence toujours les séances mais leurs fichiers
+    live_data sont absents, donc le paquet arrive sans échantillon. Réingérer
+    ne doit PAS détruire ce qui est déjà en base."""
+    workout = WorkoutRecord(
+        source_uuid=UUID,
+        started_at=datetime(2026, 2, 5, 19, 2, tzinfo=UTC),
+        sport="Course à pied",
+    )
+    samples = [
+        SampleRecord(at=datetime(2026, 2, 5, 19, 2, second, tzinfo=UTC), heart_rate=130)
+        for second in (0, 1, 2)
+    ]
+    await upsert_workout_bundle(session, WorkoutBundle(workout=workout, samples=samples))
+    assert await _count(session, WorkoutSample) == 3
+
+    await upsert_workout_bundle(session, WorkoutBundle(workout=workout))
+
+    assert await _count(session, WorkoutSample) == 3
+    stored = (await session.execute(select(Workout))).scalar_one()
+    assert stored.has_samples is True
+
+
 async def test_workout_presence_flags_are_computed(session: AsyncSession) -> None:
     workout = WorkoutRecord(
         source_uuid=UUID,
@@ -3346,7 +3373,7 @@ import dataclasses
 from collections.abc import Iterable, Sequence
 from typing import Any
 
-from sqlalchemy import delete
+from sqlalchemy import delete, exists, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -3369,14 +3396,6 @@ from app.models import (
 from app.models.nutrition import NutritionEntry
 
 BATCH_SIZE = 1000
-
-WORKOUT_CHILD_MODELS = (
-    WorkoutSample,
-    WorkoutLocation,
-    SwimLength,
-    StrengthSet,
-    WorkoutExtra,
-)
 
 # Correspondance dataclass -> colonne, là où les noms diffèrent.
 _PHASE_FIELD_MAP = {"kind": "kind"}
@@ -3437,11 +3456,10 @@ async def upsert_phases(session: AsyncSession, records: Sequence[PhaseRecord]) -
 
 
 async def upsert_workout_bundle(session: AsyncSession, bundle: WorkoutBundle) -> int:
+    # Les drapeaux has_* ne figurent PAS ici : ils sont recalculés depuis la
+    # base après l'écriture des lignes filles, sinon un export sans JSON les
+    # remettrait à faux alors que les données restent présentes.
     values = dataclasses.asdict(bundle.workout)
-    values["has_samples"] = bool(bundle.samples)
-    values["has_locations"] = bool(bundle.locations)
-    values["has_swim_lengths"] = bool(bundle.swim_lengths)
-    values["has_strength_sets"] = bool(bundle.strength_sets)
 
     statement = insert(Workout).values(**values)
     statement = statement.on_conflict_do_update(
@@ -3449,9 +3467,6 @@ async def upsert_workout_bundle(session: AsyncSession, bundle: WorkoutBundle) ->
         set_={key: statement.excluded[key] for key in values if key != "source_uuid"},
     ).returning(Workout.id)
     workout_id = (await session.execute(statement)).scalar_one()
-
-    for model in WORKOUT_CHILD_MODELS:
-        await session.execute(delete(model).where(model.workout_id == workout_id))
 
     children = (
         (WorkoutSample, bundle.samples),
@@ -3462,7 +3477,13 @@ async def upsert_workout_bundle(session: AsyncSession, bundle: WorkoutBundle) ->
     )
     for model, records in children:
         if not records:
+            # L'export courant n'apporte rien pour ce type : on PRÉSERVE
+            # l'existant. Samsung a cessé d'exporter les JSON par séance ;
+            # un remplacement inconditionnel détruirait les 2,8 M
+            # d'échantillons déjà en base au premier import d'un nouvel
+            # export.
             continue
+        await session.execute(delete(model).where(model.workout_id == workout_id))
         rows = [
             {"workout_id": workout_id, **dataclasses.asdict(record)}
             for record in records
@@ -3470,7 +3491,31 @@ async def upsert_workout_bundle(session: AsyncSession, bundle: WorkoutBundle) ->
         for batch in _batches(rows):
             await session.execute(insert(model).values(list(batch)))
 
+    await _refresh_presence_flags(session, workout_id)
     return workout_id
+
+
+async def _refresh_presence_flags(session: AsyncSession, workout_id: int) -> None:
+    """Recalcule les drapeaux depuis la base, jamais depuis le paquet.
+
+    Les lignes filles peuvent préexister sans être dans le paquet courant ;
+    déduire les drapeaux du seul paquet les remettrait à faux alors que les
+    données sont bien là.
+    """
+    flags = {}
+    for column, model in (
+        ("has_samples", WorkoutSample),
+        ("has_locations", WorkoutLocation),
+        ("has_swim_lengths", SwimLength),
+        ("has_strength_sets", StrengthSet),
+    ):
+        present = await session.scalar(
+            select(exists().where(model.workout_id == workout_id))
+        )
+        flags[column] = bool(present)
+    await session.execute(
+        update(Workout).where(Workout.id == workout_id).values(**flags)
+    )
 
 
 async def upsert_workout_bundles(
