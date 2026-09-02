@@ -10,7 +10,10 @@ from app.ingestion.samsung.parsers import (
     parse_float,
     parse_int,
 )
-from app.ingestion.samsung.records import BodyMeasurementRecord
+from app.ingestion.samsung.records import (
+    BodyMeasurementRecord,
+    NutritionEntryRecord,
+)
 
 
 def map_body_measurement(row: dict[str, str]) -> BodyMeasurementRecord | None:
@@ -38,4 +41,23 @@ def map_body_measurement(row: dict[str, str]) -> BodyMeasurementRecord | None:
         total_body_water_kg=parse_float(row.get("total_body_water")),
         basal_metabolic_rate_kcal=parse_int(row.get("basal_metabolic_rate")),
         height_cm=parse_float(row.get("height")),
+    )
+
+
+def map_nutrition_entry(row: dict[str, str]) -> NutritionEntryRecord | None:
+    """Renvoie None si la ligne n'est pas exploitable (cf. map_body_measurement)."""
+    source_uuid = (row.get("datauuid") or "").strip()
+    if not source_uuid:
+        return None
+    consumed_at = parse_aware_datetime(row.get("start_time"), row.get("time_offset"))
+    if consumed_at is None:
+        return None
+    return NutritionEntryRecord(
+        source_uuid=source_uuid,
+        consumed_at=consumed_at,
+        food_name=(row.get("name") or "").strip(),
+        meal_type=parse_int(row.get("meal_type")),
+        amount=parse_float(row.get("amount")),
+        unit_code=parse_int(row.get("unit")),
+        calories=parse_float(row.get("calorie")),
     )
