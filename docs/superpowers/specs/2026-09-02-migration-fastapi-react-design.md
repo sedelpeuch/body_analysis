@@ -141,6 +141,13 @@ Résumé de séance : `source_uuid` unique, `started_at`, `ended_at`,
 `max_hr_custom`, `max_hr_auto`, `hr_aerobic_threshold`,
 `hr_anaerobic_threshold`, `resting_hr`.
 
+Deux colonnes de l'export, `vo2_max` et `sweat_loss`, sont conservées en base
+mais **ne sont exposées par aucune vue** : vérification faite, elles sont
+vides dans les données réelles. De même, les zones cardiaques stockées dans
+`sensing_status` ne sont valides que sur 7 séances ; les zones sont donc
+**calculées** à partir de `max_hr` et des échantillons, ce qui les rend
+disponibles sur les 2 314 séances porteuses de fréquence cardiaque.
+
 Trois drapeaux `has_samples`, `has_locations`, `has_swim_lengths` évitent des
 sous-requêtes à l'affichage des listes.
 
@@ -256,7 +263,80 @@ musculaire. Ces absences restent `null` de bout en bout — base, API, front —
 et les courbes présentent un trou. **Jamais de zéro de substitution** : une
 courbe trouée est honnête, une courbe qui plonge à zéro est un mensonge.
 
-## 5. API
+## 5. Analyses débloquées par les données inexploitées
+
+Vérifications faites sur les données réelles, la journalisation alimentaire
+couvre **100 % des 747 jours** du 2024-08-14 au 2026-08-30 (11 855 entrées,
+857 aliments distincts), et le poids est relevé **84 % des jours**. Cette
+densité rend crédibles des analyses qui seraient anecdotiques sur des
+données trouées. L'application actuelle n'extrait de tout cela qu'un total de
+calories par jour.
+
+### 5.1 Dépense énergétique réelle par phase
+
+En croisant l'apport moyen et la pente de régression du poids sur une phase,
+la dépense énergétique totale s'estime par
+`TDEE ≈ apport moyen − pente(kg/jour) × 7700`.
+
+Résultat sur les données réelles : la dépense estimée décroît de ~2 840 à
+~2 410 kcal/jour entre la première et la troisième sèche, sous l'effet
+combiné de l'adaptation métabolique et d'une masse corporelle plus faible.
+
+C'est la seule analyse qui permet de **calibrer la cible calorique de la
+phase suivante sur du mesuré**. Contraintes de validité, à faire respecter
+par le code : fenêtre d'au moins 21 jours de journalisation et 10 pesées, et
+affichage explicite de l'incertitude — le facteur 7700 kcal/kg est une
+approximation, et les variations d'hydratation dominent le signal sur les
+fenêtres courtes.
+
+### 5.2 Qualité de la recomposition corporelle
+
+L'application n'affiche que le *pourcentage* de masse grasse, grandeur
+ambiguë puisqu'elle varie aussi quand la masse maigre varie. L'export
+contient `body_fat_mass` et `fat_free_mass` **en kilogrammes** (638 et 387
+valeurs, jamais lues aujourd'hui).
+
+Exposer les deltas en kilos de masse grasse et de masse maigre répond à la
+seule question qui compte pendant une sèche : la perte vient-elle du gras ou
+du muscle. C'est présenté par phase, à côté des objectifs.
+
+### 5.3 Fréquence cardiaque de repos
+
+2 509 relevés issus de `sensing_status`, de 47 à 70 bpm sur 21 mois.
+Indicateur de forme et de récupération, à superposer aux phases et à la
+charge d'entraînement — une FC de repos qui monte pendant une sèche est un
+signal de sous-récupération.
+
+### 5.4 Charge d'entraînement
+
+2 314 séances (50 % de celles porteuses de données intra-séance) ont une
+fréquence cardiaque échantillonnée. On en dérive une charge par séance de
+type TRIMP, puis une charge aiguë (7 jours) comparée à la charge chronique
+(28 jours), ainsi que la dérive cardiaque intra-séance.
+
+### 5.5 Métabolisme de base
+
+638 valeurs entre 1 548 et 1 729 kcal, inexploitées. Sa décroissance se lit
+en regard de l'estimation de dépense de 5.1 et corrobore l'adaptation
+métabolique.
+
+### 5.6 Nutrition granulaire
+
+Aliments récurrents, calories par type de repas, et **fenêtre alimentaire** :
+les prises s'étalent de 5 h à 18 h avec un pic marqué à 6 h, motif de jeûne
+intermittent directement lisible dans les horodatages.
+
+### 5.7 Limites assumées
+
+- **Aucun macronutriment dans l'export** : seules les calories sont
+  présentes. Pas d'analyse protéines, glucides, lipides. C'est une absence de
+  la source, non un choix de conception, et l'interface ne doit pas laisser
+  croire le contraire.
+- `vo2_max` et `sweat_loss` sont vides dans les données réelles.
+- La cadence n'est présente que sur 6 % des séances : exploitable en vue de
+  séance, pas en tendance.
+
+## 6. API
 
 Toutes les routes sont préfixées `/api`. Les erreurs suivent la RFC 9457
 (`application/problem+json`), produites par des handlers FastAPI qui
@@ -314,6 +394,19 @@ de la résolution d'un écran. La réduction se fait en SQL par moyenne sur
 buckets (`width_bucket`), paramètre `points` par défaut à 1 000 et plafonné
 à 5 000.
 
+### Analyses transverses
+
+- `GET /body/composition?from&to` — masses en kilogrammes (grasse, maigre,
+  musculaire, eau) et métabolisme de base
+- `GET /analytics/tdee?phase_id` ou `?from&to` — dépense estimée, apport
+  moyen, pente du poids, incertitude, et validité de la fenêtre
+- `GET /analytics/energy-balance?from&to` — apport contre dépense par jour
+- `GET /analytics/resting-hr?from&to` — tendance de la FC de repos
+- `GET /analytics/training-load?from&to` — charge par séance, charge aiguë et
+  chronique
+- `GET /nutrition/eating-window?from&to` — distribution horaire des prises
+- `GET /nutrition/top-foods?from&to&limit` — aliments récurrents
+
 ### Photos
 
 - `GET /photos?tag`
@@ -330,7 +423,7 @@ paysage. La nouvelle implémentation lit l'orientation EXIF.
 - `POST /imports/samsung-zip` — multipart
 - `GET /imports`, `GET /imports/{id}`
 
-## 6. Flux d'ingestion
+## 7. Flux d'ingestion
 
 1. Réception du ZIP, création d'un `ingestion_run` en statut `running`.
 2. `reader` localise les trois CSV et le dossier
@@ -362,19 +455,20 @@ appelé aussi bien par l'endpoint d'upload que par un script jetable
 `phases.json` et l'arborescence `photos/`. Il n'est pas une surface produit à
 maintenir.
 
-## 7. Front
+## 8. Front
 
 ### Organisation de la navigation
 
 | Route | Rôle |
 | --- | --- |
 | `/` | **Aujourd'hui** — phase en cours, progression vers les objectifs, dernières séances, dernière photo |
-| `/corps` | courbes poids, masse grasse, masse musculaire, masse maigre, eau ; bandes de phases superposées |
+| `/corps` | courbes poids, masse grasse, masse musculaire, masse maigre, eau ; masses en kilogrammes et non seulement en pourcentage ; bandes de phases superposées |
 | `/corps/photos` | timeline par tag, comparateur avant/après au curseur, mode confidentiel |
 | `/phases` | liste et timeline |
 | `/phases/:id` | objectifs contre réalisé, courbes et photos de la période |
-| `/nutrition` | calories par jour, moyennes par phase, répartition par repas |
-| `/entrainement` | calendrier, volume par sport, records |
+| `/nutrition` | calories par jour, moyennes par phase, répartition par repas, aliments récurrents, fenêtre alimentaire |
+| `/energie` | **nouveau** — dépense énergétique mesurée par phase, apport contre dépense, métabolisme de base, calibrage de la cible de la phase suivante |
+| `/entrainement` | calendrier, volume par sport, records, charge aiguë contre chronique, FC de repos |
 | `/entrainement/:id` | **nouveau** — courbes FC, vitesse et altitude, trace GPS, temps par zone cardiaque, splits au kilomètre, longueurs et SWOLF en natation, séries et volume en musculation |
 | `/reglages` | import ZIP, gestion des photos et des phases |
 
@@ -391,11 +485,35 @@ production.
 
 ### Direction visuelle
 
-Volontairement non figée dans cette spec. Elle sera traitée par la skill
-`frontend-design` au moment de l'implémentation, pour éviter de livrer un
-thème shadcn par défaut.
+Référence donnée : **Samsung Health 2026**, thème sombre, accent vert et
+bleu. S'y ajoutent les partis pris typographiques d'un tableau de bord
+existant de l'utilisateur, retenus explicitement.
 
-## 8. Tests
+- **Fond quasi noir** avec une grille de fond très discrète, surfaces de
+  cartes à peine plus claires que le fond. Pas de thème clair : l'application
+  est sombre par construction.
+- **Accent double, vert primaire et bleu secondaire**, le dégradé vert vers
+  bleu servant aux jauges et anneaux de progression — la signature visuelle
+  de Samsung Health.
+- **Trois familles typographiques, à rôles distincts** : un display condensé
+  en capitales pour les titres de section, un monospace pour les étiquettes,
+  les identifiants et **toutes les valeurs numériques** (chiffres tabulaires,
+  indispensable pour aligner des colonnes de mesures), et un sans-serif
+  neutre pour le texte courant.
+- **Cartes à bandeau teinté par domaine** — corps, nutrition, entraînement,
+  phases reçoivent chacun sa teinte, appliquée en bandeau d'en-tête et en
+  pastille d'étiquette. C'est le mécanisme qui rend un tableau de bord dense
+  lisible d'un coup d'oeil.
+- **Points d'état colorés** et lignes de liste largement espacées plutôt que
+  des tableaux compacts.
+- Anneaux de progression pour l'atteinte des objectifs de phase.
+
+La palette exacte, l'échelle typographique et les composants sont arrêtés à
+l'implémentation via la skill `frontend-design`, et la palette de graphiques
+via la skill `dataviz`, en dérivant des couleurs de série de l'accent plutôt
+qu'en empilant des teintes sans rapport.
+
+## 9. Tests
 
 - `analytics/` — tests purs, sans infrastructure. C'est là que la TDD paie :
   deltas, vitesses mensuelles, sens d'atteinte des objectifs, zones
@@ -407,7 +525,7 @@ thème shadcn par défaut.
 - Front — Vitest sur les fonctions utilitaires. Pas de test de rendu
   exhaustif : mauvais rapport valeur/coût sur une application personnelle.
 
-## 9. Ordre de mise en oeuvre
+## 10. Ordre de mise en oeuvre
 
 Le périmètre est large ; il se découpe en incréments dont chacun est
 vérifiable de bout en bout. L'ordre est contraint par les dépendances
@@ -424,10 +542,13 @@ réelles, pas par les couches techniques.
    ~2,8 M points et ~590 k positions en base.
 4. **Analytics et API de lecture** — les modules purs et les endpoints
    corps, nutrition, phases, entraînement. C'est le gros du travail testé.
+   Les analyses transverses de la section 5 (dépense énergétique,
+   recomposition, FC de repos, charge d'entraînement) viennent après les
+   endpoints de base, car elles s'appuient dessus.
 5. **Photos** — MinIO, dérivés, flou, orientation EXIF, CRUD.
 6. **Front** — socle Vite et direction visuelle, puis les vues dans l'ordre
    `/`, `/corps`, `/entrainement` et `/entrainement/:id`, `/phases`,
-   `/nutrition`, `/corps/photos`, `/reglages`.
+   `/energie`, `/nutrition`, `/corps/photos`, `/reglages`.
 7. **Écritures** — CRUD phases, envoi de photos, import ZIP avec suivi de
    progression.
 8. **Bascule** — comparaison des chiffres avec l'application Streamlit sur
@@ -438,13 +559,13 @@ nouvelle application doivent correspondre à celles de l'ancienne, aux
 corrections de bugs documentées près (classification de la natation,
 orientation EXIF, séances antérieures à août 2024 désormais incluses).
 
-## 10. Déploiement
+## 11. Déploiement
 
 Docker Compose, quatre services : `db` (PostgreSQL 17), `minio`, `api`
 (uvicorn), `web` (nginx servant le build et proxifiant `/api`). Réseau local
 uniquement, sans authentification. Sauvegarde par `pg_dump` et `mc mirror`.
 
-## 11. Hors périmètre, volontairement
+## 12. Hors périmètre, volontairement
 
 - Authentification et multi-utilisateur.
 - Celery, Redis, file d'attente.
