@@ -39,6 +39,169 @@ class NutritionEntryRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class NutritionDetailRecord:
+    source_uuid: str
+    consumed_at: datetime
+    meal_type: int | None = None
+    title: str = ""
+    calories: float | None = None
+    protein: float | None = None
+    total_fat: float | None = None
+    saturated_fat: float | None = None
+    trans_fat: float | None = None
+    monosaturated_fat: float | None = None
+    polysaturated_fat: float | None = None
+    carbohydrate: float | None = None
+    dietary_fiber: float | None = None
+    sugar: float | None = None
+    added_sugar: float | None = None
+    cholesterol: float | None = None
+    sodium: float | None = None
+    potassium: float | None = None
+    calcium: float | None = None
+    iron: float | None = None
+    vitamin_a: float | None = None
+    vitamin_c: float | None = None
+    vitamin_d: float | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class EnergyExpenditureRecord:
+    source_uuid: str
+    day: date
+    rest_calorie: float | None = None
+    active_calorie: float | None = None
+    tef_calorie: float | None = None
+    active_time_ms: int | None = None
+    total_exercise_calories: float | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class SleepSessionRecord:
+    source_uuid: str
+    started_at: datetime
+    ended_at: datetime | None = None
+    original_wake_up_time: datetime | None = None
+    efficiency: float | None = None
+    efficiency_with_latency: float | None = None
+    physical_recovery: int | None = None
+    mental_recovery: int | None = None
+    deep_score: int | None = None
+    rem_score: int | None = None
+    wake_score: int | None = None
+    nap_score: int | None = None
+    latency_score: int | None = None
+    sleep_latency: int | None = None
+    total_rem_duration: int | None = None
+    total_light_duration: int | None = None
+    sleep_duration: int | None = None
+    sleep_score: int | None = None
+    has_sleep_data: int | None = None
+    sleep_type: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class SleepStageRecord:
+    source_uuid: str
+    started_at: datetime
+    sleep_source_uuid: str | None = None
+    ended_at: datetime | None = None
+    stage: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class HrvReadingRecord:
+    source_uuid: str
+    started_at: datetime
+    ended_at: datetime | None = None
+    avg_sdnn: float | None = None
+    avg_rmssd: float | None = None
+    sample_count: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class HeartRateReadingRecord:
+    source_uuid: str
+    started_at: datetime
+    ended_at: datetime | None = None
+    mean_heart_rate: float | None = None
+    min_heart_rate: float | None = None
+    max_heart_rate: float | None = None
+    heart_beat_count: int | None = None
+    tag_id: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class StressReadingRecord:
+    source_uuid: str
+    started_at: datetime
+    ended_at: datetime | None = None
+    score: float | None = None
+    min_score: float | None = None
+    max_score: float | None = None
+    tag_id: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RespiratoryRateReadingRecord:
+    source_uuid: str
+    started_at: datetime
+    ended_at: datetime | None = None
+    average: float | None = None
+    lower_limit: float | None = None
+    upper_limit: float | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class SkinTemperatureReadingRecord:
+    source_uuid: str
+    started_at: datetime
+    ended_at: datetime | None = None
+    temperature: float | None = None
+    min_temperature: float | None = None
+    max_temperature: float | None = None
+    baseline: float | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class OxygenSaturationReadingRecord:
+    source_uuid: str
+    started_at: datetime
+    ended_at: datetime | None = None
+    spo2: float | None = None
+    heart_rate: float | None = None
+    tag_id: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DailyActivityRecord:
+    source_uuid: str
+    day: date
+    step_count: int | None = None
+    active_time_ms: int | None = None
+    calorie: float | None = None
+    distance_m: float | None = None
+    floor_count: int | None = None
+    score: int | None = None
+    exercise_time_ms: int | None = None
+    run_time_ms: int | None = None
+    walk_time_ms: int | None = None
+    longest_active_time_ms: int | None = None
+    move_hourly_count: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class StepDailyTrendRecord:
+    source_uuid: str
+    day: date
+    count: int | None = None
+    distance_m: float | None = None
+    calorie: float | None = None
+    speed: float | None = None
+    source_type: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class SampleRecord:
     at: datetime
     elapsed_ms: int | None = None

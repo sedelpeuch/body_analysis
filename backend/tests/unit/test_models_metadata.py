@@ -14,6 +14,18 @@ EXPECTED_TABLES = {
     "workout_extra",
     "photo",
     "ingestion_run",
+    "nutrition_detail",
+    "energy_expenditure",
+    "sleep_session",
+    "sleep_stage",
+    "hrv_reading",
+    "heart_rate_reading",
+    "stress_reading",
+    "respiratory_rate_reading",
+    "skin_temperature_reading",
+    "oxygen_saturation_reading",
+    "daily_activity",
+    "step_daily_trend",
 }
 
 

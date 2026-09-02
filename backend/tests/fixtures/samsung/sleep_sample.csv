@@ -1,0 +1,4 @@
+com.samsung.shealth.sleep,7006003,11
+sleep_efficiency_with_latency,efficiency,physical_recovery,mental_recovery,deep_score,rem_score,wake_score,nap_score,latency_score,sleep_latency,total_rem_duration,total_light_duration,sleep_type,has_sleep_data,sleep_score,sleep_duration,com.samsung.health.sleep.start_time,com.samsung.health.sleep.end_time,com.samsung.health.sleep.time_offset,original_wake_up_time,com.samsung.health.sleep.datauuid
+78.0,82.0,64.0,58.0,20.0,15.0,90.0,,70.0,600,5400,10800,-1,0,72.0,25200,2024-12-22 23:00:00.000,2024-12-23 07:00:00.000,UTC+0100,2024-12-23 07:24:00.000,2ca56115-6553-45f1-bfa7-eb37c4c77ac9
+,,,,,,,,,,,,,,,,2024-12-24 23:00:00.000,,UTC+0100,,

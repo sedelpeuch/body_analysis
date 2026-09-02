@@ -1,0 +1,4 @@
+com.samsung.shealth.tracker.heart_rate,7006003,6
+start_time,end_time,time_offset,heart_rate,min,max,heart_beat_count,tag_id,datauuid
+2024-11-20 22:00:00.000,2024-11-20 22:30:00.000,UTC+0100,80,72,92,1200,7,hello-world-hr
+,,,,,,,,

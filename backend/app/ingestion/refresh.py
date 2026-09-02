@@ -5,7 +5,14 @@ from __future__ import annotations
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-DAILY_VIEWS = ("mv_daily_body", "mv_daily_nutrition", "mv_daily_training")
+DAILY_VIEWS = (
+    "mv_daily_body",
+    "mv_daily_nutrition",
+    "mv_daily_nutrition_detail",
+    "mv_daily_sleep",
+    "mv_daily_vitals",
+    "mv_daily_training",
+)
 
 
 async def refresh_materialized_views(

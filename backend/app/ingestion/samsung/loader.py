@@ -17,14 +17,37 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ingestion.samsung.records import (
     BodyMeasurementRecord,
+    DailyActivityRecord,
+    EnergyExpenditureRecord,
+    HeartRateReadingRecord,
+    HrvReadingRecord,
+    NutritionDetailRecord,
     NutritionEntryRecord,
+    OxygenSaturationReadingRecord,
     PhaseRecord,
+    RespiratoryRateReadingRecord,
+    SkinTemperatureReadingRecord,
+    SleepSessionRecord,
+    SleepStageRecord,
+    StepDailyTrendRecord,
+    StressReadingRecord,
     WorkoutBundle,
 )
 from app.models import (
     BodyMeasurement,
+    DailyActivity,
+    EnergyExpenditure,
+    HeartRateReading,
+    HrvReading,
+    OxygenSaturationReading,
     Phase,
+    RespiratoryRateReading,
+    SkinTemperatureReading,
+    SleepSession,
+    SleepStage,
+    StepDailyTrend,
     StrengthSet,
+    StressReading,
     SwimLength,
     Workout,
     WorkoutExtra,
@@ -32,6 +55,7 @@ from app.models import (
     WorkoutSample,
 )
 from app.models.nutrition import NutritionEntry
+from app.models.nutrition_detail import NutritionDetail
 
 BATCH_SIZE = 1000
 
@@ -42,7 +66,9 @@ def _batches(items: Sequence[Any], size: int = BATCH_SIZE) -> Iterable[Sequence[
 
 
 async def _upsert_on_source_uuid(
-    session: AsyncSession, model: type, records: Sequence[Any]
+    session: AsyncSession,
+    model: type,
+    records: Sequence[Any],
 ) -> int:
     if not records:
         return 0
@@ -65,15 +91,101 @@ async def _upsert_on_source_uuid(
 
 
 async def upsert_body_measurements(
-    session: AsyncSession, records: Sequence[BodyMeasurementRecord]
+    session: AsyncSession,
+    records: Sequence[BodyMeasurementRecord],
 ) -> int:
     return await _upsert_on_source_uuid(session, BodyMeasurement, records)
 
 
 async def upsert_nutrition_entries(
-    session: AsyncSession, records: Sequence[NutritionEntryRecord]
+    session: AsyncSession,
+    records: Sequence[NutritionEntryRecord],
 ) -> int:
     return await _upsert_on_source_uuid(session, NutritionEntry, records)
+
+
+async def upsert_nutrition_details(
+    session: AsyncSession,
+    records: Sequence[NutritionDetailRecord],
+) -> int:
+    return await _upsert_on_source_uuid(session, NutritionDetail, records)
+
+
+async def upsert_energy_expenditures(
+    session: AsyncSession,
+    records: Sequence[EnergyExpenditureRecord],
+) -> int:
+    return await _upsert_on_source_uuid(session, EnergyExpenditure, records)
+
+
+async def upsert_sleep_sessions(
+    session: AsyncSession,
+    records: Sequence[SleepSessionRecord],
+) -> int:
+    return await _upsert_on_source_uuid(session, SleepSession, records)
+
+
+async def upsert_sleep_stages(
+    session: AsyncSession,
+    records: Sequence[SleepStageRecord],
+) -> int:
+    return await _upsert_on_source_uuid(session, SleepStage, records)
+
+
+async def upsert_hrv_readings(
+    session: AsyncSession,
+    records: Sequence[HrvReadingRecord],
+) -> int:
+    return await _upsert_on_source_uuid(session, HrvReading, records)
+
+
+async def upsert_heart_rate_readings(
+    session: AsyncSession,
+    records: Sequence[HeartRateReadingRecord],
+) -> int:
+    return await _upsert_on_source_uuid(session, HeartRateReading, records)
+
+
+async def upsert_stress_readings(
+    session: AsyncSession,
+    records: Sequence[StressReadingRecord],
+) -> int:
+    return await _upsert_on_source_uuid(session, StressReading, records)
+
+
+async def upsert_respiratory_rate_readings(
+    session: AsyncSession,
+    records: Sequence[RespiratoryRateReadingRecord],
+) -> int:
+    return await _upsert_on_source_uuid(session, RespiratoryRateReading, records)
+
+
+async def upsert_skin_temperature_readings(
+    session: AsyncSession,
+    records: Sequence[SkinTemperatureReadingRecord],
+) -> int:
+    return await _upsert_on_source_uuid(session, SkinTemperatureReading, records)
+
+
+async def upsert_oxygen_saturation_readings(
+    session: AsyncSession,
+    records: Sequence[OxygenSaturationReadingRecord],
+) -> int:
+    return await _upsert_on_source_uuid(session, OxygenSaturationReading, records)
+
+
+async def upsert_daily_activities(
+    session: AsyncSession,
+    records: Sequence[DailyActivityRecord],
+) -> int:
+    return await _upsert_on_source_uuid(session, DailyActivity, records)
+
+
+async def upsert_step_daily_trends(
+    session: AsyncSession,
+    records: Sequence[StepDailyTrendRecord],
+) -> int:
+    return await _upsert_on_source_uuid(session, StepDailyTrend, records)
 
 
 async def upsert_phases(session: AsyncSession, records: Sequence[PhaseRecord]) -> int:
@@ -84,7 +196,7 @@ async def upsert_phases(session: AsyncSession, records: Sequence[PhaseRecord]) -
         return 0
     await session.execute(delete(Phase))
     await session.execute(
-        insert(Phase).values([dataclasses.asdict(record) for record in records])
+        insert(Phase).values([dataclasses.asdict(record) for record in records]),
     )
     await session.commit()
     return len(records)
@@ -145,16 +257,17 @@ async def _refresh_presence_flags(session: AsyncSession, workout_id: int) -> Non
         ("has_strength_sets", StrengthSet),
     ):
         present = await session.scalar(
-            select(exists().where(model.workout_id == workout_id))
+            select(exists().where(model.workout_id == workout_id)),
         )
         flags[column] = bool(present)
     await session.execute(
-        update(Workout).where(Workout.id == workout_id).values(**flags)
+        update(Workout).where(Workout.id == workout_id).values(**flags),
     )
 
 
 async def upsert_workout_bundles(
-    session: AsyncSession, bundles: Iterable[WorkoutBundle]
+    session: AsyncSession,
+    bundles: Iterable[WorkoutBundle],
 ) -> int:
     """Commite tous les 100 paquets : garder 4 734 séances et leurs 2,8 M
     d'échantillons dans une seule transaction ferait exploser la mémoire."""

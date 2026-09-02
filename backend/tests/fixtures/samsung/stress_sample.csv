@@ -1,0 +1,4 @@
+com.samsung.shealth.stress,7006003,5
+start_time,end_time,time_offset,score,min,max,tag_id,datauuid
+2024-11-20 22:00:00.000,2024-11-20 22:30:00.000,UTC+0100,44,20,70,6,hello-world-stress
+,,,,,,,,

@@ -25,6 +25,8 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from app.storage.minio import MinioStorage
+
 TEST_DATABASE_URL = os.environ.get("BA_TEST_DATABASE_URL")
 
 
@@ -56,3 +58,12 @@ async def session(engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with factory() as opened:
         yield opened
+
+
+@pytest.fixture(scope="session")
+def minio_storage() -> MinioStorage:
+    """MinIO réel de compose. Sauté proprement s'il est injoignable."""
+    storage = MinioStorage()
+    if not storage.is_reachable():
+        pytest.skip("MinIO indisponible : lancer `docker compose up -d minio`")
+    return storage

@@ -1,0 +1,4 @@
+com.samsung.health.sleep_stage,7006003,7
+start_time,sleep_id,stage,time_offset,end_time,datauuid
+2024-12-22 23:00:00.000,2ca56115-6553-45f1-bfa7-eb37c4c77ac9,40001,UTC+0100,2024-12-22 23:20:00.000,27c5a75c-cc02-49c1-9a01-084e1e0cbd65
+,,,,,

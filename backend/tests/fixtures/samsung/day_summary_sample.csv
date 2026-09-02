@@ -1,0 +1,4 @@
+com.samsung.shealth.activity.day_summary,7006003,7
+start_time,day_time,step_count,active_time,calorie,distance,floor_count,score,exercise_time,run_time,walk_time,longest_active_time,move_hourly_count,datauuid
+2024-11-20 00:00:00.000,2018-11-28 00:00:00.000,8671,5436000,1340,32800,23,70,3600000,1800000,2400000,450000,8,aa2c5c13-83ef-4d8a-909c-64d463d4dd36
+,,,,,,,,,,,,,

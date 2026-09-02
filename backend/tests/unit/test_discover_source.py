@@ -70,6 +70,41 @@ def test_ignores_exercise_csv_without_timestamp(tmp_path: Path) -> None:
     assert discover_source(tmp_path).exercise_csv is None
 
 
+def test_finds_extended_sources(tmp_path: Path) -> None:
+    for name in (
+        "com.samsung.health.nutrition.20260831162666.csv",
+        "com.samsung.shealth.calories_burned.details.20260831162666.csv",
+        "com.samsung.shealth.sleep.20260831162666.csv",
+        "com.samsung.health.sleep_stage.20260831162666.csv",
+        "com.samsung.health.hrv.20260831162666.csv",
+        "com.samsung.shealth.tracker.heart_rate.20260831162666.csv",
+        "com.samsung.shealth.stress.20260831162666.csv",
+        "com.samsung.shealth.activity.day_summary.20260831162666.csv",
+        "com.samsung.shealth.step_daily_trend.20260831162666.csv",
+        "com.samsung.shealth.tracker.oxygen_saturation.20260831162666.csv",
+        "com.samsung.health.respiratory_rate.20260831162666.csv",
+        "com.samsung.health.skin_temperature.20260831162666.csv",
+    ):
+        _touch(tmp_path / name)
+    _touch(tmp_path / "jsons" / "com.samsung.health.hrv" / "a" / "a.json")
+
+    source = discover_source(tmp_path)
+
+    assert source.nutrition_csv is not None
+    assert source.calories_burned_csv is not None
+    assert source.sleep_csv is not None
+    assert source.sleep_stage_csv is not None
+    assert source.hrv_csv is not None
+    assert source.hrv_dir == tmp_path / "jsons" / "com.samsung.health.hrv"
+    assert source.heart_rate_csv is not None
+    assert source.stress_csv is not None
+    assert source.day_summary_csv is not None
+    assert source.step_daily_trend_csv is not None
+    assert source.oxygen_saturation_csv is not None
+    assert source.respiratory_rate_csv is not None
+    assert source.skin_temperature_csv is not None
+
+
 def test_empty_directory_yields_all_none(tmp_path: Path) -> None:
     source = discover_source(tmp_path)
 
