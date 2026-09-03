@@ -18,6 +18,7 @@ from app.ingestion.samsung.parsers import (
     parse_epoch_millis,
     parse_float,
     parse_int,
+    parse_json_int,
 )
 from app.ingestion.samsung.records import (
     LocationRecord,
@@ -74,13 +75,13 @@ def map_samples(payload: object) -> list[SampleRecord]:
             continue
         by_timestamp[at] = SampleRecord(
             at=at,
-            elapsed_ms=parse_int(item.get("elapsed_time")),
-            heart_rate=parse_int(item.get("heart_rate")),
+            elapsed_ms=parse_json_int(item.get("elapsed_time")),
+            heart_rate=parse_json_int(item.get("heart_rate")),
             speed_mps=parse_float(item.get("speed")),
             distance_m=parse_float(item.get("distance")),
             calories_kcal=parse_float(item.get("calorie")),
-            cadence=parse_int(item.get("cadence")),
-            segment=parse_int(item.get("segment")),
+            cadence=parse_json_int(item.get("cadence")),
+            segment=parse_json_int(item.get("segment")),
         )
     return sorted(by_timestamp.values(), key=lambda sample: sample.at)
 

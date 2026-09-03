@@ -81,6 +81,29 @@ def test_map_samples_tolerates_absent_metrics() -> None:
     assert later.cadence is None
 
 
+def test_map_samples_reads_float_typed_json_numbers() -> None:
+    """Verrou de non-régression : l'export réel sérialise heart_rate,
+    cadence et elapsed_time en float JSON (100.0) sur certains fichiers et
+    en int réel sur d'autres, sans cohérence. Un parse_int strict sur ces
+    champs laissait heart_rate/elapsed_ms/cadence NULL sur les 2,4 M lignes
+    de workout_sample de l'export réel — jamais détecté ici tant que le
+    fixture n'utilisait que des entiers JSON."""
+    payload = [
+        {
+            "start_time": 1644085620000,
+            "heart_rate": 100.0,
+            "cadence": 78.0,
+            "elapsed_time": 5000.0,
+        },
+    ]
+
+    samples = map_samples(payload)
+
+    assert samples[0].heart_rate == 100
+    assert samples[0].cadence == 78
+    assert samples[0].elapsed_ms == 5000
+
+
 def test_map_locations_requires_coordinates() -> None:
     """Un point sans latitude n'est pas plaçable ; il est écarté plutôt que
     stocké avec une coordonnée nulle."""

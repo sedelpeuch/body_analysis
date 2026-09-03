@@ -38,6 +38,21 @@ def parse_int(raw: object) -> int | None:
     return int(text)
 
 
+def parse_json_int(raw: object) -> int | None:
+    """Entier venant d'une valeur JSON déjà typée (int ou float Python),
+    par opposition à parse_int qui attend une chaîne CSV.
+
+    Samsung sérialise certains champs logiquement entiers des JSON annexes
+    (heart_rate, cadence, elapsed_time de live_data...) en float — 100.0 au
+    lieu de 100 — et d'autres en int réel, sans cohérence d'un fichier à
+    l'autre. parse_int rejetterait "100.0" (un point n'est pas un chiffre) ;
+    ceci accepte les deux représentations d'une même valeur entière.
+    """
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+        return None
+    return round(raw)
+
+
 def parse_utc_offset(raw: object) -> timezone | None:
     match = _OFFSET_RE.match(_clean(raw))
     if match is None:

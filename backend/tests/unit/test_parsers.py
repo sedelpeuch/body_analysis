@@ -10,6 +10,7 @@ from app.ingestion.samsung.parsers import (
     parse_epoch_millis,
     parse_float,
     parse_int,
+    parse_json_int,
     parse_utc_offset,
     read_samsung_csv,
 )
@@ -45,6 +46,27 @@ def test_parse_float_never_returns_nan() -> None:
 )
 def test_parse_int(raw: object, expected: int | None) -> None:
     assert parse_int(raw) == expected
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (100.0, 100),
+        (99, 99),
+        (0.0, 0),
+        (100.6, 101),
+        (None, None),
+        ("100", None),  # chaîne CSV : hors périmètre, cf. parse_int
+        (True, None),
+    ],
+)
+def test_parse_json_int(raw: object, expected: int | None) -> None:
+    """Samsung sérialise certains champs entiers des JSON annexes en float
+    (heart_rate: 100.0) et d'autres en int réel, sans cohérence. Un bug
+    découvert en exploitant l'export réel : parse_int rejetait "100.0" via
+    sa regex stricte, laissant heart_rate/cadence/elapsed_ms NULL sur les
+    2,4 M lignes de workout_sample."""
+    assert parse_json_int(raw) == expected
 
 
 @pytest.mark.parametrize(
