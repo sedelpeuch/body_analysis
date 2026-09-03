@@ -19,6 +19,7 @@ from datetime import date
 from pathlib import Path
 
 from app.db import session_factory
+from app.errors import ConflictError
 from app.services.photos import ALLOWED_TAGS, upload_photo
 from app.storage.minio import get_storage
 
@@ -49,9 +50,18 @@ async def main(root: Path) -> int:
                     continue
 
                 raw_bytes = image_path.read_bytes()
-                photo = await upload_photo(
-                    session, storage, taken_on=taken_on, tag=tag, raw_bytes=raw_bytes
-                )
+                try:
+                    photo = await upload_photo(
+                        session,
+                        storage,
+                        taken_on=taken_on,
+                        tag=tag,
+                        raw_bytes=raw_bytes,
+                    )
+                except ConflictError as error:
+                    print(f"  ignoré (conflit sha256) : {image_path} — {error}")
+                    ignored += 1
+                    continue
                 uploaded += 1
                 print(
                     f"  {taken_on} / {tag:<8} -> photo #{photo.id} ({image_path.name})"
