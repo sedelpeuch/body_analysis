@@ -60,6 +60,16 @@ async def session(engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
         yield opened
 
 
+@pytest_asyncio.fixture(loop_scope="session")
+async def test_session_factory(
+    engine: AsyncEngine,
+) -> async_sessionmaker[AsyncSession]:
+    """Fabrique liée à la base jetable, pour surcharger
+    app.db.get_session_factory dans les tests d'API qui déclenchent une
+    tâche de fond utilisant sa propre session."""
+    return async_sessionmaker(engine, expire_on_commit=False)
+
+
 @pytest.fixture(scope="session")
 def minio_storage() -> MinioStorage:
     """MinIO réel de compose. Sauté proprement s'il est injoignable."""
