@@ -8,10 +8,11 @@ export function useImportRuns() {
   return useQuery({ queryKey: IMPORTS_KEY, queryFn: importsApi.fetchImportRuns });
 }
 
-export function useImportRun(id: number, options: { pollWhileRunning?: boolean } = {}) {
+export function useImportRun(id: number | undefined, options: { pollWhileRunning?: boolean } = {}) {
   return useQuery({
     queryKey: [...IMPORTS_KEY, id] as const,
-    queryFn: () => importsApi.fetchImportRun(id),
+    queryFn: () => importsApi.fetchImportRun(id!),
+    enabled: id !== undefined,
     refetchInterval: options.pollWhileRunning
       ? (query: { state: { data?: IngestionRunOut } }) => (query.state.data?.status === "running" ? 1500 : false)
       : undefined,
