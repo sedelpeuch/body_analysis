@@ -76,7 +76,25 @@ services:
       minio:
         condition: service_healthy
 
+  # Service de développement : Vite en mode dev avec rechargement à chaud.
+  # Le Dockerfile de production (build statique + nginx) arrive avec la
+  # conteneurisation finale du front, plan docs/superpowers/plans/2026-09-03-front.md tâche 14.
+  web:
+    image: node:22-slim
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    environment:
+      VITE_API_PROXY_TARGET: http://api:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      - api
+
 volumes:
   db_data:
   test_db_data:
   minio_data:
+  frontend_node_modules:
