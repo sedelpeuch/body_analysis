@@ -1,0 +1,58 @@
+@import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --color-void: #0a0d0f;
+  --color-surface: #12161a;
+  --color-surface-raised: #181d21;
+  --color-line: #20262b;
+  --color-text-high: #eef1f0;
+  --color-text-mid: #9aa5ab;
+  --color-text-low: #5b656b;
+
+  --color-accent-green: #21c274;
+  --color-accent-blue: #2e8fe0;
+  --color-domain-body: #2e8fe0;
+  --color-domain-nutrition: #d9a441;
+  --color-domain-training: #21c274;
+  --color-domain-phase: #a06de0;
+
+  --font-display: "Barlow Condensed", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --font-sans: "Inter", sans-serif;
+
+  --radius-card: 0.5rem;
+}
+
+:root {
+  --gradient-progress: linear-gradient(135deg, var(--color-accent-green), var(--color-accent-blue));
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-void text-text-high font-sans antialiased;
+  margin: 0;
+  background-color: var(--color-void);
+  background-attachment: fixed;
+  background-size: 48px 48px;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--color-line) 40%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-line) 40%, transparent) 1px, transparent 1px);
+}
+
+#root {
+  min-height: 100svh;
+}
+
+h1,
+h2,
+h3 {
+  @apply font-display uppercase tracking-wide text-text-high;
+}
+
+.tabular {
+  @apply font-mono tabular-nums;
+}
