@@ -1,4 +1,4 @@
-"""Tests d'intégration de l'API phases (lecture seule)."""
+"""Tests d'intégration de l'API phases."""
 
 from datetime import date
 
@@ -62,3 +62,131 @@ async def test_get_current_phase_can_be_null(session: AsyncSession) -> None:
 
     assert response.status_code == 200
     assert response.json() is None
+
+
+_PAYLOAD = {
+    "name": "Sèche automne",
+    "kind": "cut",
+    "starts_on": "2026-09-01",
+    "ends_on": "2026-11-30",
+    "weight_target_kg": 78.0,
+}
+
+
+async def test_post_phase_returns_201(session: AsyncSession) -> None:
+    app.dependency_overrides[get_session] = lambda: session
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.post("/api/phases", json=_PAYLOAD)
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["name"] == "Sèche automne"
+    assert body["kind"] == "cut"
+
+
+async def test_post_phase_with_invalid_dates_is_422_problem_json(
+    session: AsyncSession,
+) -> None:
+    invalid = {**_PAYLOAD, "starts_on": "2026-11-30", "ends_on": "2026-09-01"}
+
+    app.dependency_overrides[get_session] = lambda: session
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.post("/api/phases", json=invalid)
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 422
+    assert response.headers["content-type"].startswith("application/problem+json")
+
+
+async def test_post_phase_with_invalid_kind_is_422(session: AsyncSession) -> None:
+    invalid = {**_PAYLOAD, "kind": "shred"}
+
+    app.dependency_overrides[get_session] = lambda: session
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.post("/api/phases", json=invalid)
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 422
+
+
+async def test_patch_phase_updates_a_single_field(session: AsyncSession) -> None:
+    app.dependency_overrides[get_session] = lambda: session
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            created = (await client.post("/api/phases", json=_PAYLOAD)).json()
+            response = await client.patch(
+                f"/api/phases/{created['id']}", json={"daily_calories_target": 2100}
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["daily_calories_target"] == 2100
+    assert response.json()["name"] == "Sèche automne"
+
+
+async def test_patch_phase_with_invalid_dates_is_422(session: AsyncSession) -> None:
+    app.dependency_overrides[get_session] = lambda: session
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            created = (await client.post("/api/phases", json=_PAYLOAD)).json()
+            response = await client.patch(
+                f"/api/phases/{created['id']}", json={"ends_on": "2020-01-01"}
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 422
+
+
+async def test_patch_unknown_phase_is_404_problem_json(session: AsyncSession) -> None:
+    app.dependency_overrides[get_session] = lambda: session
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.patch("/api/phases/999999", json={"name": "x"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    assert response.headers["content-type"].startswith("application/problem+json")
+
+
+async def test_delete_phase_returns_204(session: AsyncSession) -> None:
+    app.dependency_overrides[get_session] = lambda: session
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            created = (await client.post("/api/phases", json=_PAYLOAD)).json()
+            response = await client.delete(f"/api/phases/{created['id']}")
+            listing = await client.get("/api/phases")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 204
+    assert created["id"] not in [p["id"] for p in listing.json()]
+
+
+async def test_delete_unknown_phase_is_404_problem_json(session: AsyncSession) -> None:
+    app.dependency_overrides[get_session] = lambda: session
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.delete("/api/phases/999999")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    assert response.headers["content-type"].startswith("application/problem+json")

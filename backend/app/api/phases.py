@@ -5,10 +5,11 @@ from __future__ import annotations
 from datetime import date
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.schemas.phases import PhaseOut, PhaseReportOut
+from app.schemas.phases import PhaseCreate, PhaseOut, PhaseReportOut, PhaseUpdate
 from app.services import phases as phases_service
 
 router = APIRouter(prefix="/phases", tags=["phases"])
@@ -18,6 +19,14 @@ router = APIRouter(prefix="/phases", tags=["phases"])
 async def list_phases(session: AsyncSession = Depends(get_session)) -> list[PhaseOut]:
     phases = await phases_service.list_phases(session)
     return [PhaseOut.model_validate(p) for p in phases]
+
+
+@router.post("", response_model=PhaseOut, status_code=201)
+async def create_phase(
+    payload: PhaseCreate, session: AsyncSession = Depends(get_session)
+) -> PhaseOut:
+    phase = await phases_service.create_phase(session, payload)
+    return PhaseOut.model_validate(phase)
 
 
 @router.get("/current", response_model=PhaseOut | None)
@@ -45,3 +54,19 @@ async def get_phase_report(
 ) -> PhaseReportOut:
     report = await phases_service.get_phase_report(session, phase_id, today=today)
     return PhaseReportOut.model_validate(report)
+
+
+@router.patch("/{phase_id}", response_model=PhaseOut)
+async def update_phase(
+    phase_id: int, payload: PhaseUpdate, session: AsyncSession = Depends(get_session)
+) -> PhaseOut:
+    phase = await phases_service.update_phase(session, phase_id, payload)
+    return PhaseOut.model_validate(phase)
+
+
+@router.delete("/{phase_id}", status_code=204)
+async def delete_phase(
+    phase_id: int, session: AsyncSession = Depends(get_session)
+) -> Response:
+    await phases_service.delete_phase(session, phase_id)
+    return Response(status_code=204)
