@@ -174,6 +174,7 @@ async def test_get_training_load_computes_acute_chronic(
         sport="Course",
         resting_hr=55,
         max_hr_custom=190,
+        has_samples=True,
     )
     session.add(workout)
     await session.commit()

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -211,29 +211,43 @@ async def get_resting_hr(
 async def get_training_load(
     session: AsyncSession, date_range: DateRange
 ) -> list[LoadBalance]:
-    query = select(Workout).order_by(Workout.started_at)
+    query = select(Workout).where(Workout.has_samples.is_(True))
+    query = query.order_by(Workout.started_at)
     if date_range.start is not None:
         query = query.where(Workout.started_at >= date_range.start)
     if date_range.end is not None:
         query = query.where(Workout.started_at <= date_range.end)
     workouts = (await session.execute(query)).scalars().all()
+    if not workouts:
+        return []
+
+    # Une requête pour l'ensemble des séances plutôt qu'une par séance :
+    # sur l'historique complet (~4 700 séances), l'aller-retour réseau par
+    # requête dominait largement le calcul lui-même (24 s contre <2 s ici).
+    workout_ids = [w.id for w in workouts]
+    samples_rows = (
+        await session.execute(
+            select(
+                WorkoutSample.workout_id, WorkoutSample.at, WorkoutSample.heart_rate
+            ).where(WorkoutSample.workout_id.in_(workout_ids)),
+        )
+    ).all()
+    samples_by_workout: dict[int, list[tuple[datetime, int | None]]] = {}
+    for row in samples_rows:
+        samples_by_workout.setdefault(row.workout_id, []).append(
+            (row.at, row.heart_rate)
+        )
 
     load_by_day: dict[date, float] = {}
     for workout in workouts:
-        samples_rows = (
-            await session.execute(
-                select(WorkoutSample.at, WorkoutSample.heart_rate).where(
-                    WorkoutSample.workout_id == workout.id,
-                ),
-            )
-        ).all()
-        if not samples_rows:
+        samples = samples_by_workout.get(workout.id)
+        if not samples:
             continue
         trimp = compute_trimp(
             SessionLoadInput(
                 workout_id=workout.id,
                 started_at=workout.started_at,
-                samples=[(row.at, row.heart_rate) for row in samples_rows],
+                samples=samples,
                 resting_hr=workout.resting_hr,
                 max_hr=workout.max_hr_custom or workout.max_hr_auto,
             ),
