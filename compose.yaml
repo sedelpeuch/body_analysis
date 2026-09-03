@@ -77,8 +77,6 @@ services:
         condition: service_healthy
 
   # Service de développement : Vite en mode dev avec rechargement à chaud.
-  # Le Dockerfile de production (build statique + nginx) arrive avec la
-  # conteneurisation finale du front, plan docs/superpowers/plans/2026-09-03-front.md tâche 14.
   web:
     image: node:22-slim
     working_dir: /app
@@ -92,6 +90,20 @@ services:
       - frontend_node_modules:/app/node_modules
     depends_on:
       - api
+
+  # Image de production : build statique servi par nginx, aucun runtime
+  # Node. Non démarré par défaut (absent d'un `docker compose up` sans
+  # argument) ; se lance explicitement via `docker compose up -d web-prod`
+  # pour valider l'image avant bascule, en parallèle de `web` en dev.
+  web-prod:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    profiles: ["prod"]
 
 volumes:
   db_data:
