@@ -17,16 +17,30 @@ import { formatDuration } from "../../lib/format";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
+function isoDaysAgo(days: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date.toISOString().slice(0, 10);
+}
+
+// La charge aiguë (7j) / chronique (28j) et la FC de repos n'ont de sens
+// que sur une fenêtre récente — et /analytics/training-load sans plage de
+// dates prend ~30s sur l'historique complet (2,8M échantillons), contre
+// ~5s sur 180 jours : borner ici est autant une question de pertinence que
+// de temps de réponse.
+const RECENT_WINDOW_DAYS = 180;
+
 export function TrainingPage() {
   const [sport, setSport] = useState<string | undefined>(undefined);
+  const recentRange = { from: isoDaysAgo(RECENT_WINDOW_DAYS), to: isoDaysAgo(0) };
 
   const sports = useSports();
   const calendar = useWorkoutCalendar({ year: CURRENT_YEAR });
   const stats = useWorkoutStats({ sport });
   const records = useWorkoutRecords(sport);
   const workouts = useWorkouts({ sport, limit: 20 });
-  const trainingLoad = useTrainingLoad({});
-  const restingHr = useRestingHr({});
+  const trainingLoad = useTrainingLoad(recentRange);
+  const restingHr = useRestingHr(recentRange);
 
   return (
     <div className="flex flex-col gap-6">
@@ -92,7 +106,7 @@ export function TrainingPage() {
         )}
       </DomainCard>
 
-      <DomainCard variant="training" title="Charge aiguë contre chronique">
+      <DomainCard variant="training" title="Charge aiguë contre chronique — 180 derniers jours">
         <LineSeriesCard
           data={(trainingLoad.data ?? []).map((d) => ({ ...d, at: d.day }))}
           xKey="at"
@@ -103,7 +117,7 @@ export function TrainingPage() {
         />
       </DomainCard>
 
-      <DomainCard variant="training" title="FC de repos">
+      <DomainCard variant="training" title="FC de repos — 180 derniers jours">
         <LineSeriesCard
           data={(restingHr.data ?? []).map((d) => ({ ...d, at: d.day }))}
           xKey="at"

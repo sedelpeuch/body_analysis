@@ -38,12 +38,15 @@ export function PhaseDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
 
-  const timeseries = useTimeseries({
-    from: phase.data?.starts_on,
-    to: phase.data?.ends_on,
-    metrics: "weight,body_fat,muscle",
-    resolution: "daily",
-  });
+  const timeseries = useTimeseries(
+    {
+      from: phase.data?.starts_on,
+      to: phase.data?.ends_on,
+      metrics: "weight,body_fat,muscle",
+      resolution: "daily",
+    },
+    { enabled: phase.data !== undefined },
+  );
   const chartData = useMemo(() => (timeseries.data ? mergeTimeseries(timeseries.data) : []), [timeseries.data]);
 
   const periodPhotosByTag = useMemo(() => {

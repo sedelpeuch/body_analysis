@@ -1,5 +1,6 @@
 import { CartesianGrid, Legend, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { seriesColor } from "../../lib/chart-palette";
+import { formatAxisTick } from "../../lib/format";
 import type { PhaseBand } from "../../lib/phase-bands";
 
 export interface SeriesSpec {
@@ -32,6 +33,8 @@ export function LineSeriesCard({ data, series, xKey, height = 240, phaseBands = 
             tick={{ fill: "var(--color-text-mid)", fontSize: 12, fontFamily: "var(--font-mono)" }}
             tickLine={false}
             axisLine={{ stroke: "var(--color-line)" }}
+            tickFormatter={formatAxisTick}
+            minTickGap={32}
           />
           <YAxis
             stroke="var(--color-text-low)"

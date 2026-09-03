@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatDuration, formatPace, formatDelta } from "../lib/format";
+import { formatDuration, formatPace, formatDelta, formatAxisTick } from "../lib/format";
 
 describe("formatDuration", () => {
   it("formats milliseconds as H:MM:SS", () => {
@@ -28,5 +28,17 @@ describe("formatDelta", () => {
   });
   it("renders the empty-value dash for a null delta", () => {
     expect(formatDelta(null, "kg")).toBe("—");
+  });
+});
+
+describe("formatAxisTick", () => {
+  it("shortens a full ISO datetime to HH:MM", () => {
+    expect(formatAxisTick("2026-08-31T10:37:18.913000Z")).toBe("10:37");
+  });
+  it("shortens an ISO date to DD/MM", () => {
+    expect(formatAxisTick("2026-08-31")).toBe("31/08");
+  });
+  it("leaves any other tick value unchanged", () => {
+    expect(formatAxisTick("6h")).toBe("6h");
   });
 });

@@ -1,11 +1,22 @@
 import { useEffect, useRef } from "react";
-import maplibregl from "maplibre-gl";
+import maplibregl, { type StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { TrackOut } from "../../api/types";
 
 export interface WorkoutMapProps {
   track: TrackOut;
 }
+
+// Pas de tuiles externes : aucune source de fond de carte gratuite et fiable
+// sans clé d'API n'est garantie accessible depuis cet environnement. Un
+// style vide et transparent affiche juste la trace sur le fond sombre de
+// l'appli plutôt qu'un aplat de couleur qui ne correspond à aucune carte
+// réelle.
+const BLANK_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {},
+  layers: [{ id: "background", type: "background", paint: { "background-color": "transparent" } }],
+};
 
 export function WorkoutMap({ track }: WorkoutMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -15,9 +26,10 @@ export function WorkoutMap({ track }: WorkoutMapProps) {
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: "https://demotiles.maplibre.org/style.json",
+      style: BLANK_STYLE,
       center: track.coordinates[Math.floor(track.coordinates.length / 2)],
       zoom: 12,
+      attributionControl: false,
     });
 
     map.on("load", () => {
@@ -39,5 +51,5 @@ export function WorkoutMap({ track }: WorkoutMapProps) {
     return () => map.remove();
   }, [track]);
 
-  return <div ref={containerRef} className="h-80 w-full rounded-card" />;
+  return <div ref={containerRef} className="h-80 w-full rounded-card bg-surface-raised" />;
 }

@@ -7,11 +7,14 @@ export function useMeasurements(params: DateRangeParams) {
   return useQuery({ queryKey: measurementsQueryKey(params), queryFn: () => bodyApi.fetchMeasurements(params) });
 }
 
-export function useTimeseries(params: DateRangeParams & { metrics: string; resolution?: "raw" | "daily" }) {
+export function useTimeseries(
+  params: DateRangeParams & { metrics: string; resolution?: "raw" | "daily" },
+  options: { enabled?: boolean } = {},
+) {
   return useQuery({
     queryKey: ["body", "timeseries", params] as const,
     queryFn: () => bodyApi.fetchTimeseries(params),
-    enabled: params.from !== undefined && params.to !== undefined,
+    enabled: options.enabled ?? true,
   });
 }
 

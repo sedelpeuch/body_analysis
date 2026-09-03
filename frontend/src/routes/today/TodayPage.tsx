@@ -35,12 +35,15 @@ export function TodayPage() {
     return index > 0 ? sorted[index - 1] : undefined;
   }, [phases.data, currentPhase.data]);
 
-  const timeseries = useTimeseries({
-    from: currentPhase.data?.starts_on,
-    to: currentPhase.data?.ends_on,
-    metrics: "weight,body_fat,muscle",
-    resolution: "daily",
-  });
+  const timeseries = useTimeseries(
+    {
+      from: currentPhase.data?.starts_on,
+      to: currentPhase.data?.ends_on,
+      metrics: "weight,body_fat,muscle",
+      resolution: "daily",
+    },
+    { enabled: currentPhase.data !== undefined },
+  );
   const chartData = useMemo(() => (timeseries.data ? mergeTimeseries(timeseries.data) : []), [timeseries.data]);
 
   const comparisonPhotos = useMemo(
