@@ -125,6 +125,7 @@ def map_workout(row: dict[str, str]) -> WorkoutRecord | None:
     return WorkoutRecord(
         source_uuid=source_uuid,
         started_at=started_at,
+        source_updated_at=parse_aware_datetime(_exercise(row, "update_time"), offset),
         ended_at=parse_aware_datetime(_exercise(row, "end_time"), offset),
         duration_ms=parse_int(_exercise(row, "duration")),
         sport_type=sport_type,

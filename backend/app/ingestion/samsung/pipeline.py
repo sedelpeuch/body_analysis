@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ingestion.phases import read_phases
@@ -32,7 +33,11 @@ from app.ingestion.samsung.loader import (
     upsert_stress_readings,
     upsert_workout_bundle,
 )
-from app.ingestion.samsung.mapper import map_body_measurement, map_nutrition_entry
+from app.ingestion.samsung.mapper import (
+    map_body_measurement,
+    map_nutrition_entry,
+    map_workout,
+)
 from app.ingestion.samsung.nutrition_detail import map_nutrition_detail
 from app.ingestion.samsung.parsers import read_samsung_csv
 from app.ingestion.samsung.sleep import map_sleep_session, map_sleep_stage
@@ -44,7 +49,7 @@ from app.ingestion.samsung.vitals import (
     map_skin_temperature_reading,
     map_stress_reading,
 )
-from app.models import IngestionRun, IngestionStatus
+from app.models import IngestionRun, IngestionStatus, Workout
 
 EXERCISE_DIR_NAME = "com.samsung.shealth.exercise"
 
@@ -412,21 +417,48 @@ async def run_ingestion(
     return run
 
 
+async def _existing_workout_versions(
+    session: AsyncSession,
+) -> dict[str, datetime | None]:
+    """Charge en une requête {source_uuid: source_updated_at} des séances
+    déjà en base, pour sauter le retraitement (JSON + échantillons) des
+    séances inchangées lors d'un ré-import complet."""
+    rows = await session.execute(select(Workout.source_uuid, Workout.source_updated_at))
+    return dict(rows.all())
+
+
 async def _ingest_workouts(
     session: AsyncSession,
     exercise_csv: Path,
     exercise_dir: Path,
 ) -> dict[str, int]:
     """Traite les séances une par une pour ne jamais tenir les 2,8 M
-    d'échantillons en mémoire simultanément."""
+    d'échantillons en mémoire simultanément.
+
+    Un ré-import complet (ZIP réexporté en entier depuis le téléphone) revoit
+    chaque séance à chaque fois. La comparaison à existing_versions évite de
+    relire les JSON et de reconstruire les échantillons d'une séance dont
+    l'update_time source n'a pas bougé depuis le dernier import."""
     counts = {
         "workouts": 0,
+        "workouts_skipped": 0,
         "samples": 0,
         "locations": 0,
         "swim_lengths": 0,
         "strength_sets": 0,
     }
+    existing_versions = await _existing_workout_versions(session)
     for row in read_samsung_csv(exercise_csv):
+        light = map_workout(row)
+        if light is None:
+            continue
+        if (
+            light.source_uuid in existing_versions
+            and existing_versions[light.source_uuid] == light.source_updated_at
+        ):
+            counts["workouts_skipped"] += 1
+            continue
+
         bundle = build_workout_bundle(row, exercise_dir)
         if bundle is None:
             continue

@@ -252,6 +252,7 @@ class WorkoutRecord:
     started_at: datetime
     sport: str
     sport_type: int | None = None
+    source_updated_at: datetime | None = None
     ended_at: datetime | None = None
     duration_ms: int | None = None
     distance_m: float | None = None

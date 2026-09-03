@@ -33,6 +33,11 @@ class Workout(Base, TimestampMixin):
     source_uuid: Mapped[str] = mapped_column(
         Text, nullable=False, unique=True, index=True
     )
+    # update_time Samsung de la ligne CSV : permet à un ré-import complet de
+    # sauter le retraitement (JSON + échantillons) des séances inchangées
+    # depuis le dernier import, sans quoi chaque ré-export refait tout le
+    # travail coûteux même quand rien n'a changé.
+    source_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, index=True
     )
