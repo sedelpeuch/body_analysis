@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Double, SmallInteger, Text
+from sqlalchemy import BigInteger, DateTime, Double, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin
@@ -29,7 +29,9 @@ class NutritionDetail(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
-    meal_type: Mapped[int | None] = mapped_column(SmallInteger, index=True)
+    # Codes Samsung à 6 chiffres (ex. 100002) : un SmallInteger (max 32 767)
+    # déborde sur les vraies valeurs, cf. app/models/nutrition.py.
+    meal_type: Mapped[int | None] = mapped_column(Integer, index=True)
     title: Mapped[str] = mapped_column(Text, nullable=False, default="")
 
     calories: Mapped[float | None] = mapped_column(Double)
