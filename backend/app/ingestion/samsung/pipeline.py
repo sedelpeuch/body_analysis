@@ -167,20 +167,27 @@ async def run_ingestion(
     *,
     kind: str,
     source_name: str,
+    run: IngestionRun | None = None,
 ) -> IngestionRun:
     """Ingère un export et journalise le résultat.
 
     En cas d'échec le run est marqué FAILED avec son message avant que
     l'exception soit relancée : l'appelant décide quoi en faire, mais la
     trace en base ne se perd jamais.
+
+    run : une ligne IngestionRun déjà créée et committée à réutiliser plutôt
+    que d'en créer une nouvelle. Sert l'import HTTP, où l'identifiant du run
+    doit être connu avant que l'ingestion, potentiellement longue, ne
+    démarre en tâche de fond.
     """
-    run = IngestionRun(
-        kind=kind,
-        source_name=source_name,
-        status=IngestionStatus.RUNNING,
-    )
-    session.add(run)
-    await session.commit()
+    if run is None:
+        run = IngestionRun(
+            kind=kind,
+            source_name=source_name,
+            status=IngestionStatus.RUNNING,
+        )
+        session.add(run)
+        await session.commit()
 
     counts: dict[str, int] = {}
     try:
