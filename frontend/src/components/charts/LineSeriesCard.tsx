@@ -8,7 +8,7 @@ export interface SeriesSpec {
 }
 
 export interface LineSeriesCardProps {
-  data: Record<string, unknown>[];
+  data: object[];
   series: SeriesSpec[];
   xKey: string;
   height?: number;
