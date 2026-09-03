@@ -9,6 +9,7 @@ from sqlalchemy import func, select, text, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analytics.hr_zones import HrZoneTime, compute_hr_zone_times
+from app.analytics.training_load import CardiacDrift, compute_cardiac_drift
 from app.analytics.records import RecordEntry, WorkoutSummaryInput, compute_records
 from app.analytics.splits import Split, compute_splits
 from app.analytics.strength import (
@@ -205,6 +206,18 @@ async def get_hr_zones(session: AsyncSession, workout_id: int) -> list[HrZoneTim
     rows = (await session.execute(query)).all()
     samples = [(row.at, row.heart_rate) for row in rows]
     return compute_hr_zone_times(samples, max_hr=max_hr)
+
+
+async def get_cardiac_drift(session: AsyncSession, workout_id: int) -> CardiacDrift:
+    await get_workout(session, workout_id)
+    query = (
+        select(WorkoutSample.at, WorkoutSample.heart_rate)
+        .where(WorkoutSample.workout_id == workout_id)
+        .order_by(WorkoutSample.at)
+    )
+    rows = (await session.execute(query)).all()
+    samples = [(row.at, row.heart_rate) for row in rows]
+    return compute_cardiac_drift(samples)
 
 
 async def get_swim(session: AsyncSession, workout_id: int) -> list[SwolfByStroke]:

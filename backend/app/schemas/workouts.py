@@ -93,6 +93,14 @@ class HrZoneOut(BaseModel):
     seconds: float
 
 
+class CardiacDriftOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    first_half_mean_hr: float | None
+    second_half_mean_hr: float | None
+    drift_pct: float | None
+
+
 class SwolfByStrokeOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

@@ -13,6 +13,7 @@ from fastapi import APIRouter, Query
 from app.api.deps import DateRangeDep, DbSession
 from app.schemas.common import CursorPage
 from app.schemas.workouts import (
+    CardiacDriftOut,
     HrZoneOut,
     RecordOut,
     SamplePointOut,
@@ -117,6 +118,12 @@ async def get_splits(
 async def get_hr_zones(workout_id: int, session: DbSession):
     zones = await workouts_service.get_hr_zones(session, workout_id)
     return [HrZoneOut.model_validate(z) for z in zones]
+
+
+@router.get("/{workout_id}/cardiac-drift", response_model=CardiacDriftOut)
+async def get_cardiac_drift(workout_id: int, session: DbSession):
+    drift = await workouts_service.get_cardiac_drift(session, workout_id)
+    return CardiacDriftOut.model_validate(drift)
 
 
 @router.get("/{workout_id}/swim", response_model=list[SwolfByStrokeOut])

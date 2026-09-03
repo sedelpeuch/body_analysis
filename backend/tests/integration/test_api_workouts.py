@@ -214,6 +214,43 @@ async def test_get_hr_zones_returns_zone_times(
     assert len(response.json()) == 5
 
 
+async def test_get_cardiac_drift_returns_null_fields_without_enough_samples(
+    session: AsyncSession, client: AsyncClient
+):
+    workout = await _make_workout(session, source_uuid="drift-1")
+
+    response = await client.get(f"/api/workouts/{workout.id}/cardiac-drift")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body == {"first_half_mean_hr": None, "second_half_mean_hr": None, "drift_pct": None}
+
+
+async def test_get_cardiac_drift_computes_from_samples(
+    session: AsyncSession, client: AsyncClient
+):
+    workout = await _make_workout(session, source_uuid="drift-2")
+    base = datetime(2026, 1, 1, 8, tzinfo=UTC)
+    heart_rates = [140, 140, 150, 160]
+    for i, hr in enumerate(heart_rates):
+        session.add(
+            WorkoutSample(
+                workout_id=workout.id,
+                at=base + timedelta(minutes=i),
+                heart_rate=hr,
+            )
+        )
+    await session.commit()
+
+    response = await client.get(f"/api/workouts/{workout.id}/cardiac-drift")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["first_half_mean_hr"] == pytest.approx(140.0)
+    assert body["second_half_mean_hr"] == pytest.approx(155.0)
+    assert body["drift_pct"] == pytest.approx((155.0 - 140.0) / 140.0 * 100)
+
+
 async def test_get_swim_aggregates_swolf(session: AsyncSession, client: AsyncClient):
     workout = await _make_workout(session, source_uuid="swim-1", sport="Natation")
     session.add(
