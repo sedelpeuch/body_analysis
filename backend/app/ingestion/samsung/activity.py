@@ -5,11 +5,19 @@ from __future__ import annotations
 from datetime import date
 
 from app.ingestion.samsung.energy import parse_local_day
+from app.ingestion.samsung.parsers import parse_float
 from app.ingestion.samsung.records import DailyActivityRecord, StepDailyTrendRecord
 
 
 def _day_from_row(row: dict[str, str]) -> date | None:
     return parse_local_day(row.get("day_time"))
+
+
+def _int(raw: str | None) -> int | None:
+    """Certains compteurs entiers (ex. floor_count) sont sérialisés en
+    notation flottante ("0.0") dans l'export : int() seul lève ValueError."""
+    value = parse_float(raw)
+    return None if value is None else int(value)
 
 
 def map_daily_activity(row: dict[str, str]) -> DailyActivityRecord | None:
@@ -22,37 +30,17 @@ def map_daily_activity(row: dict[str, str]) -> DailyActivityRecord | None:
     return DailyActivityRecord(
         source_uuid=source_uuid,
         day=day,
-        step_count=int(row.get("step_count"))
-        if row.get("step_count") not in (None, "")
-        else None,
-        active_time_ms=int(row.get("active_time"))
-        if row.get("active_time") not in (None, "")
-        else None,
-        calorie=float(row.get("calorie"))
-        if row.get("calorie") not in (None, "")
-        else None,
-        distance_m=float(row.get("distance"))
-        if row.get("distance") not in (None, "")
-        else None,
-        floor_count=int(row.get("floor_count"))
-        if row.get("floor_count") not in (None, "")
-        else None,
-        score=int(row.get("score")) if row.get("score") not in (None, "") else None,
-        exercise_time_ms=int(row.get("exercise_time"))
-        if row.get("exercise_time") not in (None, "")
-        else None,
-        run_time_ms=int(row.get("run_time"))
-        if row.get("run_time") not in (None, "")
-        else None,
-        walk_time_ms=int(row.get("walk_time"))
-        if row.get("walk_time") not in (None, "")
-        else None,
-        longest_active_time_ms=int(row.get("longest_active_time"))
-        if row.get("longest_active_time") not in (None, "")
-        else None,
-        move_hourly_count=int(row.get("move_hourly_count"))
-        if row.get("move_hourly_count") not in (None, "")
-        else None,
+        step_count=_int(row.get("step_count")),
+        active_time_ms=_int(row.get("active_time")),
+        calorie=parse_float(row.get("calorie")),
+        distance_m=parse_float(row.get("distance")),
+        floor_count=_int(row.get("floor_count")),
+        score=_int(row.get("score")),
+        exercise_time_ms=_int(row.get("exercise_time")),
+        run_time_ms=_int(row.get("run_time")),
+        walk_time_ms=_int(row.get("walk_time")),
+        longest_active_time_ms=_int(row.get("longest_active_time")),
+        move_hourly_count=_int(row.get("move_hourly_count")),
     )
 
 
@@ -66,15 +54,9 @@ def map_step_daily_trend(row: dict[str, str]) -> StepDailyTrendRecord | None:
     return StepDailyTrendRecord(
         source_uuid=source_uuid,
         day=day,
-        count=int(row.get("count")) if row.get("count") not in (None, "") else None,
-        distance_m=float(row.get("distance"))
-        if row.get("distance") not in (None, "")
-        else None,
-        calorie=float(row.get("calorie"))
-        if row.get("calorie") not in (None, "")
-        else None,
-        speed=float(row.get("speed")) if row.get("speed") not in (None, "") else None,
-        source_type=int(row.get("source_type"))
-        if row.get("source_type") not in (None, "")
-        else None,
+        count=_int(row.get("count")),
+        distance_m=parse_float(row.get("distance")),
+        calorie=parse_float(row.get("calorie")),
+        speed=parse_float(row.get("speed")),
+        source_type=_int(row.get("source_type")),
     )
