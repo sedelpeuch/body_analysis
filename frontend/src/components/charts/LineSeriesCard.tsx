@@ -1,5 +1,6 @@
-import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Legend, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { seriesColor } from "../../lib/chart-palette";
+import type { PhaseBand } from "../../lib/phase-bands";
 
 export interface SeriesSpec {
   key: string;
@@ -11,9 +12,10 @@ export interface LineSeriesCardProps {
   series: SeriesSpec[];
   xKey: string;
   height?: number;
+  phaseBands?: PhaseBand[];
 }
 
-export function LineSeriesCard({ data, series, xKey, height = 240 }: LineSeriesCardProps) {
+export function LineSeriesCard({ data, series, xKey, height = 240, phaseBands = [] }: LineSeriesCardProps) {
   return (
     <div style={{ width: "100%", height }}>
       <ResponsiveContainer>
@@ -43,6 +45,17 @@ export function LineSeriesCard({ data, series, xKey, height = 240 }: LineSeriesC
             }}
             labelStyle={{ color: "var(--color-text-mid)" }}
           />
+          {phaseBands.map((band) => (
+            <ReferenceArea
+              key={band.phaseId}
+              x1={band.x1}
+              x2={band.x2}
+              fill={band.color}
+              fillOpacity={0.12}
+              stroke="none"
+              ifOverflow="visible"
+            />
+          ))}
           {series.length > 1 && <Legend wrapperStyle={{ fontSize: 12, color: "var(--color-text-mid)" }} />}
           {series.map((s, index) => (
             <Line
