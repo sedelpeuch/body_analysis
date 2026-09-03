@@ -8,9 +8,13 @@ from datetime import date, datetime
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.analytics.deltas import Delta, TimePoint, compute_delta
 from app.api.deps import DateRange
 from app.errors import ValidationError
 from app.models import BodyMeasurement
+from app.services.phases import get_current_phase
+
+SUMMARY_WINDOWS_DAYS = (7, 30, 90)
 
 METRIC_COLUMNS = {
     "weight": "weight_kg",
@@ -144,3 +148,55 @@ async def get_calendar(
     )
     rows = (await session.execute(sql, {"year": year})).all()
     return [CalendarCell(day=row.day, value=getattr(row, column)) for row in rows]
+
+
+@dataclass(frozen=True, slots=True)
+class BodySummary:
+    latest: MeasurementRow | None
+    weight_deltas: list[Delta]
+    current_phase_id: int | None
+
+
+async def get_summary(session: AsyncSession, today: date) -> BodySummary:
+    latest_row = (
+        await session.execute(
+            select(BodyMeasurement).order_by(BodyMeasurement.measured_at.desc()).limit(1),
+        )
+    ).scalar_one_or_none()
+    latest = (
+        MeasurementRow(
+            at=latest_row.measured_at,
+            weight_kg=latest_row.weight_kg,
+            body_fat_pct=latest_row.body_fat_pct,
+            body_fat_mass_kg=latest_row.body_fat_mass_kg,
+            skeletal_muscle_mass_kg=latest_row.skeletal_muscle_mass_kg,
+            fat_free_mass_kg=latest_row.fat_free_mass_kg,
+            total_body_water_kg=latest_row.total_body_water_kg,
+            basal_metabolic_rate_kcal=latest_row.basal_metabolic_rate_kcal,
+        )
+        if latest_row is not None
+        else None
+    )
+
+    weight_points = [
+        TimePoint(at=row[0].date(), value=row[1])
+        for row in (
+            await session.execute(
+                select(
+                    BodyMeasurement.measured_at, BodyMeasurement.weight_kg
+                ).order_by(BodyMeasurement.measured_at),
+            )
+        ).all()
+    ]
+    weight_deltas = [
+        compute_delta(weight_points, reference=today, window_days=window)
+        for window in SUMMARY_WINDOWS_DAYS
+    ]
+
+    current_phase = await get_current_phase(session, today)
+
+    return BodySummary(
+        latest=latest,
+        weight_deltas=weight_deltas,
+        current_phase_id=current_phase.id if current_phase is not None else None,
+    )

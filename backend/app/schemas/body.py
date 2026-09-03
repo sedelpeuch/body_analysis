@@ -32,3 +32,20 @@ class CalendarCellOut(BaseModel):
 
     day: date
     value: float | None
+
+
+class DeltaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    window_days: int
+    start_value: float | None
+    end_value: float | None
+    change: float | None
+
+
+class BodySummaryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    latest: MeasurementOut | None
+    weight_deltas: list[DeltaOut]
+    current_phase_id: int | None

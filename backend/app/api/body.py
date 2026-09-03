@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from fastapi import APIRouter, Query
 
 from app.api.deps import DateRangeDep, DbSession
-from app.schemas.body import CalendarCellOut, MeasurementOut, TimeseriesPointOut
+from app.schemas.body import (
+    BodySummaryOut,
+    CalendarCellOut,
+    MeasurementOut,
+    TimeseriesPointOut,
+)
 from app.services import body as body_service
 
 router = APIRouter(prefix="/body", tags=["corps"])
@@ -32,6 +39,14 @@ async def get_timeseries(
         metric: [TimeseriesPointOut.model_validate(p) for p in points]
         for metric, points in series.items()
     }
+
+
+@router.get("/summary", response_model=BodySummaryOut)
+async def get_summary(
+    session: DbSession, today: date = Query(default_factory=date.today)
+):
+    summary = await body_service.get_summary(session, today)
+    return BodySummaryOut.model_validate(summary)
 
 
 @router.get("/calendar", response_model=list[CalendarCellOut])

@@ -83,3 +83,32 @@ async def test_get_timeseries_daily_resolution(session: AsyncSession) -> None:
 
     assert response.status_code == 200
     assert "weight" in response.json()
+
+
+async def test_get_summary_returns_latest_deltas_and_current_phase(
+    session: AsyncSession,
+) -> None:
+    session.add(
+        BodyMeasurement(
+            source_uuid="body-api-summary-unique-2100",
+            measured_at=datetime(2100, 1, 1, tzinfo=UTC),
+            weight_kg=75.0,
+        ),
+    )
+    await session.commit()
+
+    app.dependency_overrides[get_session] = lambda: session
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                "/api/body/summary", params={"today": "2100-01-01"}
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["latest"]["weight_kg"] == 75.0
+    assert len(body["weight_deltas"]) == 3
+    assert {d["window_days"] for d in body["weight_deltas"]} == {7, 30, 90}
