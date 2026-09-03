@@ -5,12 +5,26 @@ import { useTimeseries } from "../../api/body/hooks";
 import { mergeTimeseries } from "../../api/body/mapping";
 import { usePhotos, photoImageUrl } from "../../api/photos/hooks";
 import { DomainCard } from "../../components/domain-card/DomainCard";
-import { ProgressRing } from "../../components/charts/ProgressRing";
 import { LineSeriesCard } from "../../components/charts/LineSeriesCard";
 import { PhotoImage } from "../../components/photo/PhotoImage";
+import { PhotoLightbox } from "../../components/photo/PhotoLightbox";
+import { ObjectiveSummary } from "../../components/objective/ObjectiveSummary";
 import { Button } from "../../components/ui/button";
 import { formatDelta } from "../../lib/format";
+import { METRIC_COLOR, METRIC_LABEL, OBJECTIVE_UNIT, OBJECTIVE_DELTA_UNIT } from "../../lib/metric-config";
+import type { PhotoOut } from "../../api/types";
 import { PhaseForm } from "./PhaseForm";
+
+function groupPhotosByTag(photos: PhotoOut[]): [string, PhotoOut[]][] {
+  const byTag = new Map<string, PhotoOut[]>();
+  for (const photo of photos) {
+    const list = byTag.get(photo.tag) ?? [];
+    list.push(photo);
+    byTag.set(photo.tag, list);
+  }
+  for (const list of byTag.values()) list.sort((a, b) => a.taken_on.localeCompare(b.taken_on));
+  return Array.from(byTag.entries()).sort(([a], [b]) => a.localeCompare(b));
+}
 
 export function PhaseDetailPage() {
   const { id } = useParams();
@@ -22,6 +36,7 @@ export function PhaseDetailPage() {
   const photos = usePhotos();
   const deleteMutation = useDeletePhaseMutation();
   const [editOpen, setEditOpen] = useState(false);
+  const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
 
   const timeseries = useTimeseries({
     from: phase.data?.starts_on,
@@ -31,9 +46,10 @@ export function PhaseDetailPage() {
   });
   const chartData = useMemo(() => (timeseries.data ? mergeTimeseries(timeseries.data) : []), [timeseries.data]);
 
-  const periodPhotos = useMemo(() => {
+  const periodPhotosByTag = useMemo(() => {
     if (!phase.data || !photos.data) return [];
-    return photos.data.filter((p) => p.taken_on >= phase.data!.starts_on && p.taken_on <= phase.data!.ends_on);
+    const inPeriod = photos.data.filter((p) => p.taken_on >= phase.data!.starts_on && p.taken_on <= phase.data!.ends_on);
+    return groupPhotosByTag(inPeriod);
   }, [phase.data, photos.data]);
 
   if (phase.isLoading) return <p className="text-sm text-text-mid">Chargement…</p>;
@@ -67,22 +83,24 @@ export function PhaseDetailPage() {
         {report.isLoading ? (
           <p className="text-sm text-text-mid">Chargement…</p>
         ) : (
-          <div className="flex flex-wrap gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
             {report.data?.metrics
               .filter((m) => m.objective !== null)
-              .map((m) => {
-                const objective = m.objective!;
-                const current = objective.current ?? objective.target;
-                const start = m.start_value ?? current;
-                return (
-                  <ProgressRing
-                    key={m.metric}
-                    label={m.metric}
-                    value={Math.abs(current - start)}
-                    max={Math.abs(objective.target - start) || 1}
-                  />
-                );
-              })}
+              .map((m) => (
+                <ObjectiveSummary
+                  key={m.metric}
+                  label={METRIC_LABEL[m.metric]}
+                  color={METRIC_COLOR[m.metric]}
+                  unit={OBJECTIVE_UNIT[m.metric]}
+                  deltaUnit={OBJECTIVE_DELTA_UNIT[m.metric]}
+                  start={m.start_value}
+                  current={m.objective!.current}
+                  target={m.objective!.target}
+                  direction={m.objective!.direction}
+                  changeAbs={m.change}
+                  monthlyRateAbs={m.monthly_rate}
+                />
+              ))}
           </div>
         )}
       </DomainCard>
@@ -107,38 +125,69 @@ export function PhaseDetailPage() {
         </DomainCard>
       </div>
 
-      <DomainCard variant="phase" title="Courbes de la période">
-        {timeseries.isLoading ? (
-          <p className="text-sm text-text-mid">Chargement…</p>
-        ) : (
-          <LineSeriesCard
-            data={chartData}
-            xKey="at"
-            series={[
-              { key: "weight", label: "Poids (kg)" },
-              { key: "body_fat", label: "Masse grasse (%)" },
-              { key: "muscle", label: "Muscle (%)" },
-            ]}
-          />
-        )}
-      </DomainCard>
+      {/* Un graphique par métrique : mélanger kg et % sur un même axe lisse
+          visuellement les séries à plus faible variation. */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <DomainCard variant="phase" title="Poids (kg)">
+          {timeseries.isLoading ? (
+            <p className="text-sm text-text-mid">Chargement…</p>
+          ) : (
+            <LineSeriesCard data={chartData} xKey="at" series={[{ key: "weight", label: "Poids (kg)", color: METRIC_COLOR.weight }]} />
+          )}
+        </DomainCard>
+        <DomainCard variant="phase" title="Masse grasse (%)">
+          {timeseries.isLoading ? (
+            <p className="text-sm text-text-mid">Chargement…</p>
+          ) : (
+            <LineSeriesCard
+              data={chartData}
+              xKey="at"
+              series={[{ key: "body_fat", label: "Masse grasse (%)", color: METRIC_COLOR.body_fat }]}
+            />
+          )}
+        </DomainCard>
+        <DomainCard variant="phase" title="Muscle (%)">
+          {timeseries.isLoading ? (
+            <p className="text-sm text-text-mid">Chargement…</p>
+          ) : (
+            <LineSeriesCard data={chartData} xKey="at" series={[{ key: "muscle", label: "Muscle (%)", color: METRIC_COLOR.muscle }]} />
+          )}
+        </DomainCard>
+      </div>
 
-      {periodPhotos.length > 0 && (
-        <DomainCard variant="phase" title="Photos de la période">
-          <div className="grid grid-cols-4 gap-2">
-            {periodPhotos.map((p) => (
-              <PhotoImage
-                key={p.id}
-                src={photoImageUrl(p.id, "thumb", false)}
-                alt={`Photo ${p.tag} du ${p.taken_on}`}
-                className="aspect-square w-full rounded-card object-cover"
-              />
+      {periodPhotosByTag.length > 0 && (
+        <DomainCard variant="phase" title="Photos de la période — par tag, par date">
+          <div className="flex flex-col gap-4">
+            {periodPhotosByTag.map(([tag, tagPhotos]) => (
+              <div key={tag} className="flex flex-col gap-2">
+                <span className="text-xs text-text-mid">{tag}</span>
+                <div className="flex flex-wrap gap-2">
+                  {tagPhotos.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() =>
+                        setLightbox({ src: photoImageUrl(p.id, "full", false), alt: `Photo ${p.tag} du ${p.taken_on}` })
+                      }
+                      className="flex w-40 flex-col gap-1 text-left transition-opacity hover:opacity-80"
+                    >
+                      <PhotoImage
+                        src={photoImageUrl(p.id, "medium", false)}
+                        alt={`Photo ${p.tag} du ${p.taken_on}`}
+                        className="aspect-square w-full rounded-card object-cover"
+                      />
+                      <span className="tabular text-center text-xs text-text-mid">{p.taken_on}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </DomainCard>
       )}
 
       <PhaseForm open={editOpen} onOpenChange={setEditOpen} phase={phase.data} />
+      <PhotoLightbox photo={lightbox} onClose={() => setLightbox(null)} />
     </div>
   );
 }

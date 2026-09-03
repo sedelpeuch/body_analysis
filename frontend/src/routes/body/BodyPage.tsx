@@ -4,21 +4,18 @@ import { mergeTimeseries } from "../../api/body/mapping";
 import { usePhases } from "../../api/phases/hooks";
 import { DomainCard } from "../../components/domain-card/DomainCard";
 import { LineSeriesCard } from "../../components/charts/LineSeriesCard";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { phaseBands } from "../../lib/phase-bands";
-
-function isoDaysAgo(days: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() - days);
-  return date.toISOString().slice(0, 10);
-}
+import { METRIC_COLOR } from "../../lib/metric-config";
 
 export function BodyPage() {
-  const [from, setFrom] = useState(() => isoDaysAgo(90));
-  const [to, setTo] = useState(() => isoDaysAgo(0));
-
-  const timeseries = useTimeseries({ from, to, metrics: "weight,body_fat,muscle", resolution: "daily" });
-  const composition = useComposition({ from, to });
   const phases = usePhases();
+  const [phaseId, setPhaseId] = useState<number | undefined>(undefined);
+  const selectedPhase = phases.data?.find((p) => p.id === phaseId);
+  const range = { from: selectedPhase?.starts_on, to: selectedPhase?.ends_on };
+
+  const timeseries = useTimeseries({ ...range, metrics: "weight,body_fat,muscle", resolution: "daily" });
+  const composition = useComposition(range);
 
   const percentSeries = useMemo(
     () => (timeseries.data ? mergeTimeseries(timeseries.data) : []),
@@ -47,62 +44,113 @@ export function BodyPage() {
             Poids, masse grasse, masse musculaire, masse maigre, eau — bandes de phases superposées.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-sm">
-          <label className="flex items-center gap-1 text-text-mid">
-            Du
-            <input
-              type="date"
-              value={from}
-              onChange={(e) => setFrom(e.target.value)}
-              className="rounded-card border border-line bg-surface px-2 py-1 text-text-high"
-            />
-          </label>
-          <label className="flex items-center gap-1 text-text-mid">
-            Au
-            <input
-              type="date"
-              value={to}
-              onChange={(e) => setTo(e.target.value)}
-              className="rounded-card border border-line bg-surface px-2 py-1 text-text-high"
-            />
-          </label>
-        </div>
+        <Select value={phaseId?.toString() ?? "all"} onValueChange={(v) => setPhaseId(v === "all" ? undefined : Number(v))}>
+          <SelectTrigger className="w-56">
+            <SelectValue placeholder="Toutes les données" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Toutes les données</SelectItem>
+            {phases.data?.map((p) => (
+              <SelectItem key={p.id} value={p.id.toString()}>
+                {p.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      <DomainCard variant="body" title="Poids, masse grasse et masse musculaire (%)">
-        {timeseries.isLoading ? (
-          <p className="text-sm text-text-mid">Chargement…</p>
-        ) : (
-          <LineSeriesCard
-            data={percentSeries}
-            xKey="at"
-            phaseBands={percentBands}
-            series={[
-              { key: "weight", label: "Poids (kg)" },
-              { key: "body_fat", label: "Masse grasse (%)" },
-              { key: "muscle", label: "Muscle (%)" },
-            ]}
-          />
-        )}
-      </DomainCard>
+      {/* Un graphique par métrique plutôt qu'un axe partagé : des échelles
+          aussi différentes (kg contre %) lissent visuellement les séries
+          aux plus petites variations quand elles sont superposées. */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <DomainCard variant="body" title="Poids (kg)">
+          {timeseries.isLoading ? (
+            <p className="text-sm text-text-mid">Chargement…</p>
+          ) : (
+            <LineSeriesCard
+              data={percentSeries}
+              xKey="at"
+              phaseBands={percentBands}
+              series={[{ key: "weight", label: "Poids (kg)", color: METRIC_COLOR.weight }]}
+            />
+          )}
+        </DomainCard>
+        <DomainCard variant="body" title="Masse grasse (%)">
+          {timeseries.isLoading ? (
+            <p className="text-sm text-text-mid">Chargement…</p>
+          ) : (
+            <LineSeriesCard
+              data={percentSeries}
+              xKey="at"
+              phaseBands={percentBands}
+              series={[{ key: "body_fat", label: "Masse grasse (%)", color: METRIC_COLOR.body_fat }]}
+            />
+          )}
+        </DomainCard>
+        <DomainCard variant="body" title="Muscle (%)">
+          {timeseries.isLoading ? (
+            <p className="text-sm text-text-mid">Chargement…</p>
+          ) : (
+            <LineSeriesCard
+              data={percentSeries}
+              xKey="at"
+              phaseBands={percentBands}
+              series={[{ key: "muscle", label: "Muscle (%)", color: METRIC_COLOR.muscle }]}
+            />
+          )}
+        </DomainCard>
+      </div>
 
-      <DomainCard variant="body" title="Masses en kilogrammes">
-        {composition.isLoading ? (
-          <p className="text-sm text-text-mid">Chargement…</p>
-        ) : (
-          <LineSeriesCard
-            data={compositionSeries}
-            xKey="at"
-            phaseBands={compositionBands}
-            series={[
-              { key: "body_fat_mass_kg", label: "Masse grasse (kg)" },
-              { key: "fat_free_mass_kg", label: "Masse maigre (kg)" },
-              { key: "skeletal_muscle_mass_kg", label: "Muscle (kg)" },
-              { key: "total_body_water_kg", label: "Eau (kg)" },
-            ]}
-          />
-        )}
-      </DomainCard>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <DomainCard variant="body" title="Masse grasse (kg)">
+          {composition.isLoading ? (
+            <p className="text-sm text-text-mid">Chargement…</p>
+          ) : (
+            <LineSeriesCard
+              data={compositionSeries}
+              xKey="at"
+              phaseBands={compositionBands}
+              series={[{ key: "body_fat_mass_kg", label: "Masse grasse (kg)", color: METRIC_COLOR.body_fat }]}
+            />
+          )}
+        </DomainCard>
+        <DomainCard variant="body" title="Masse maigre (kg)">
+          {composition.isLoading ? (
+            <p className="text-sm text-text-mid">Chargement…</p>
+          ) : (
+            <LineSeriesCard
+              data={compositionSeries}
+              xKey="at"
+              phaseBands={compositionBands}
+              series={[{ key: "fat_free_mass_kg", label: "Masse maigre (kg)" }]}
+            />
+          )}
+        </DomainCard>
+        <DomainCard variant="body" title="Muscle (kg)">
+          {composition.isLoading ? (
+            <p className="text-sm text-text-mid">Chargement…</p>
+          ) : (
+            <LineSeriesCard
+              data={compositionSeries}
+              xKey="at"
+              phaseBands={compositionBands}
+              series={[{ key: "skeletal_muscle_mass_kg", label: "Muscle (kg)", color: METRIC_COLOR.muscle }]}
+            />
+          )}
+        </DomainCard>
+        <DomainCard variant="body" title="Eau (kg)">
+          {composition.isLoading ? (
+            <p className="text-sm text-text-mid">Chargement…</p>
+          ) : (
+            <LineSeriesCard
+              data={compositionSeries}
+              xKey="at"
+              phaseBands={compositionBands}
+              series={[{ key: "total_body_water_kg", label: "Eau (kg)" }]}
+            />
+          )}
+        </DomainCard>
+      </div>
     </div>
   );
 }

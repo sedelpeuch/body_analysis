@@ -56,21 +56,31 @@ export function WorkoutDetailPage() {
       </div>
 
       {w.has_samples && (
-        <DomainCard variant="training" title="FC, vitesse et altitude">
-          {samples.isLoading ? (
-            <p className="text-sm text-text-mid">Chargement…</p>
-          ) : (
-            <LineSeriesCard
-              data={samples.data ?? []}
-              xKey="at"
-              series={[
-                { key: "heart_rate", label: "FC (bpm)" },
-                { key: "speed_mps", label: "Vitesse (m/s)" },
-                { key: "altitude_m", label: "Altitude (m)" },
-              ]}
-            />
-          )}
-        </DomainCard>
+        // Un graphique par mesure : bpm, m/s et mètres n'ont rien de
+        // comparable sur un même axe, ça écraserait les deux plus petites.
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <DomainCard variant="training" title="FC (bpm)">
+            {samples.isLoading ? (
+              <p className="text-sm text-text-mid">Chargement…</p>
+            ) : (
+              <LineSeriesCard data={samples.data ?? []} xKey="at" series={[{ key: "heart_rate", label: "FC (bpm)" }]} />
+            )}
+          </DomainCard>
+          <DomainCard variant="training" title="Vitesse (m/s)">
+            {samples.isLoading ? (
+              <p className="text-sm text-text-mid">Chargement…</p>
+            ) : (
+              <LineSeriesCard data={samples.data ?? []} xKey="at" series={[{ key: "speed_mps", label: "Vitesse (m/s)" }]} />
+            )}
+          </DomainCard>
+          <DomainCard variant="training" title="Altitude (m)">
+            {samples.isLoading ? (
+              <p className="text-sm text-text-mid">Chargement…</p>
+            ) : (
+              <LineSeriesCard data={samples.data ?? []} xKey="at" series={[{ key: "altitude_m", label: "Altitude (m)" }]} />
+            )}
+          </DomainCard>
+        </div>
       )}
 
       {w.has_locations && (

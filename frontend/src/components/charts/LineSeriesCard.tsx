@@ -5,6 +5,11 @@ import type { PhaseBand } from "../../lib/phase-bands";
 export interface SeriesSpec {
   key: string;
   label: string;
+  // Fixe la couleur d'une métrique récurrente (poids, muscle, masse grasse...)
+  // à travers les pages, plutôt que de la laisser dépendre de sa position
+  // dans `series` — important depuis que chaque métrique a son propre
+  // graphique à une seule série (index toujours 0 sinon).
+  color?: string;
 }
 
 export interface LineSeriesCardProps {
@@ -63,7 +68,7 @@ export function LineSeriesCard({ data, series, xKey, height = 240, phaseBands = 
               type="monotone"
               dataKey={s.key}
               name={s.label}
-              stroke={seriesColor(index)}
+              stroke={s.color ?? seriesColor(index)}
               strokeWidth={2}
               dot={false}
               connectNulls={false}

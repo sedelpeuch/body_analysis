@@ -1,23 +1,24 @@
 import { useMemo, useState } from "react";
-import {
-  useDailyNutrition,
-  useEatingWindow,
-  useNutritionBreakdown,
-  useNutritionEntries,
-  useTopFoods,
-} from "../../api/nutrition/hooks";
+import { usePhases } from "../../api/phases/hooks";
+import { useDailyNutrition, useEatingWindow, useNutritionBreakdown, useNutritionEntries } from "../../api/nutrition/hooks";
 import { DomainCard } from "../../components/domain-card/DomainCard";
 import { LineSeriesCard } from "../../components/charts/LineSeriesCard";
+import { StatTile } from "../../components/charts/StatTile";
 import { EmptyValue } from "../../components/empty-state/EmptyValue";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 
 export function NutritionPage() {
   const [page, setPage] = useState(1);
+  const [phaseId, setPhaseId] = useState<number | undefined>(undefined);
 
-  const daily = useDailyNutrition({});
-  const entries = useNutritionEntries({ page });
-  const breakdown = useNutritionBreakdown({});
-  const eatingWindow = useEatingWindow({});
-  const topFoods = useTopFoods({ limit: 10 });
+  const phases = usePhases();
+  const selectedPhase = phases.data?.find((p) => p.id === phaseId);
+  const range = { from: selectedPhase?.starts_on, to: selectedPhase?.ends_on };
+
+  const daily = useDailyNutrition(range);
+  const entries = useNutritionEntries({ ...range, page });
+  const breakdown = useNutritionBreakdown(range);
+  const eatingWindow = useEatingWindow(range);
 
   const dailyData = useMemo(() => (daily.data ?? []).map((d) => ({ ...d, at: d.day })), [daily.data]);
   const hourlyData = useMemo(
@@ -25,15 +26,51 @@ export function NutritionPage() {
     [eatingWindow.data],
   );
 
+  const averageCalories = useMemo(() => {
+    const withValue = (daily.data ?? []).filter((d) => d.calories !== null);
+    if (withValue.length === 0) return null;
+    return Math.round(withValue.reduce((sum, d) => sum + d.calories!, 0) / withValue.length);
+  }, [daily.data]);
+
   const totalPages = entries.data ? Math.ceil(entries.data.total / entries.data.page_size) : 1;
+
+  function handlePhaseChange(value: string) {
+    setPhaseId(value === "all" ? undefined : Number(value));
+    setPage(1);
+  }
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl">Nutrition</h1>
-        <p className="text-text-mid">
-          Calories par jour, répartition par repas, aliments récurrents, fenêtre alimentaire.
-        </p>
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="text-2xl">Nutrition</h1>
+          <p className="text-text-mid">Calories par jour, répartition par repas, fenêtre alimentaire.</p>
+        </div>
+        <Select value={phaseId?.toString() ?? "all"} onValueChange={handlePhaseChange}>
+          <SelectTrigger className="w-56">
+            <SelectValue placeholder="Toutes les données" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Toutes les données</SelectItem>
+            {phases.data?.map((p) => (
+              <SelectItem key={p.id} value={p.id.toString()}>
+                {p.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <DomainCard variant="nutrition" title="Apport moyen">
+          <StatTile label="Apport moyen" value={averageCalories} unit="kcal/j" />
+        </DomainCard>
+        <DomainCard variant="nutrition" title="Jours journalisés">
+          <StatTile label="Jours" value={daily.data?.length ?? null} />
+        </DomainCard>
+        <DomainCard variant="nutrition" title="Entrées">
+          <StatTile label="Entrées" value={entries.data?.total ?? null} />
+        </DomainCard>
       </div>
 
       <DomainCard variant="nutrition" title="Calories par jour">
@@ -58,25 +95,10 @@ export function NutritionPage() {
           )}
         </DomainCard>
 
-        <DomainCard variant="nutrition" title="Aliments récurrents">
-          {topFoods.isLoading ? (
-            <p className="text-sm text-text-mid">Chargement…</p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {topFoods.data?.map((f) => (
-                <li key={f.food_name} className="tabular flex justify-between text-sm">
-                  <span className="text-text-mid">{f.food_name}</span>
-                  <span className="text-text-high">{f.entry_count}×</span>
-                </li>
-              ))}
-            </ul>
-          )}
+        <DomainCard variant="nutrition" title="Fenêtre alimentaire">
+          <LineSeriesCard data={hourlyData} xKey="hour" series={[{ key: "entry_count", label: "Prises" }]} height={200} />
         </DomainCard>
       </div>
-
-      <DomainCard variant="nutrition" title="Fenêtre alimentaire">
-        <LineSeriesCard data={hourlyData} xKey="hour" series={[{ key: "entry_count", label: "Prises" }]} />
-      </DomainCard>
 
       <DomainCard variant="nutrition" title="Entrées">
         {entries.isLoading ? (

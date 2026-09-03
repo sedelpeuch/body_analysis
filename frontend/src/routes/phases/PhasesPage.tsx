@@ -1,10 +1,20 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useQueries } from "@tanstack/react-query";
 import { usePhases, usePhasesReport } from "../../api/phases/hooks";
+import * as phasesApi from "../../api/phases/api";
 import { DomainCard } from "../../components/domain-card/DomainCard";
+import { EmptyValue } from "../../components/empty-state/EmptyValue";
 import { Button } from "../../components/ui/button";
 import { PhaseForm } from "./PhaseForm";
-import type { PhaseKind } from "../../api/types";
+import { METRIC_LABEL, OBJECTIVE_DELTA_UNIT } from "../../lib/metric-config";
+import type { Metric, PhaseKind } from "../../api/types";
+
+const EFFICIENCY_METRICS: Metric[] = ["weight", "body_fat", "muscle"];
+
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
+}
 
 const KIND_COLOR: Record<PhaseKind, string> = {
   cut: "bg-domain-training",
@@ -26,6 +36,13 @@ export function PhasesPage() {
   const timelineStart = sorted[0]?.starts_on;
   const timelineEnd = sorted.reduce((max, p) => (p.ends_on > max ? p.ends_on : max), sorted[0]?.ends_on ?? "");
   const totalDays = timelineStart ? dayOffset(timelineStart, timelineEnd) || 1 : 1;
+
+  const phaseReportQueries = useQueries({
+    queries: sorted.map((p) => ({
+      queryKey: ["phases", p.id, "report", undefined] as const,
+      queryFn: () => phasesApi.fetchPhaseReport(p.id),
+    })),
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -93,6 +110,44 @@ export function PhasesPage() {
             ))}
           </ul>
         )}
+      </DomainCard>
+
+      <DomainCard variant="phase" title="Efficacité par phase — rythme mensuel réel">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-text-mid">
+              <th className="pb-2 font-normal">Phase</th>
+              {EFFICIENCY_METRICS.map((m) => (
+                <th key={m} className="pb-2 font-normal">
+                  {METRIC_LABEL[m]}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="tabular">
+            {sorted.map((p, i) => {
+              const q = phaseReportQueries[i];
+              return (
+                <tr key={p.id} className="border-t border-line">
+                  <td className="py-2 text-text-high">{p.name}</td>
+                  {EFFICIENCY_METRICS.map((metric) => {
+                    if (q.isLoading) return <td key={metric} className="py-2 text-text-mid">…</td>;
+                    const m = q.data?.metrics.find((x) => x.metric === metric);
+                    return (
+                      <td key={metric} className="py-2">
+                        {m?.monthly_rate !== null && m?.monthly_rate !== undefined ? (
+                          `${round2(m.monthly_rate)} ${OBJECTIVE_DELTA_UNIT[metric]}/mois`
+                        ) : (
+                          <EmptyValue />
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </DomainCard>
 
       <PhaseForm open={createOpen} onOpenChange={setCreateOpen} />
