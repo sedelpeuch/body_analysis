@@ -20,8 +20,12 @@ export function usePhasesReport(today?: string) {
   return useQuery({ queryKey: [...PHASES_KEY, "report", today] as const, queryFn: () => phasesApi.fetchPhasesReport({ today }) });
 }
 
-export function usePhaseReport(id: number, today?: string) {
-  return useQuery({ queryKey: [...PHASES_KEY, id, "report", today] as const, queryFn: () => phasesApi.fetchPhaseReport(id, { today }) });
+export function usePhaseReport(id: number | undefined, today?: string) {
+  return useQuery({
+    queryKey: [...PHASES_KEY, id, "report", today] as const,
+    queryFn: () => phasesApi.fetchPhaseReport(id!, { today }),
+    enabled: id !== undefined,
+  });
 }
 
 export function useCreatePhaseMutation() {
