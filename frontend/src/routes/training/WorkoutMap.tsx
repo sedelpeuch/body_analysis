@@ -7,10 +7,13 @@ export interface WorkoutMapProps {
   track: TrackOut;
 }
 
-// Fond de carte CARTO Dark Matter : gratuit, sans clé d'API, assorti au
-// thème sombre de l'appli. Attribution obligatoire par leur CGU.
-const TILE_URL = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
-const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+// Fond satellite Esri World Imagery : gratuit, sans clé d'API. Attribution
+// obligatoire par leurs conditions d'utilisation.
+const TILE_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+const ATTRIBUTION = "Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community";
+// Vert de l'accent peu lisible sur de la végétation ou de l'eau en imagerie
+// satellite : rouge franc pour un contraste garanti sur tout type de terrain.
+const TRACK_COLOR = "#e0452e";
 
 export function WorkoutMap({ track }: WorkoutMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -22,9 +25,9 @@ export function WorkoutMap({ track }: WorkoutMapProps) {
     const latLngs = track.coordinates.map(([lng, lat]) => [lat, lng] as [number, number]);
 
     const map = L.map(containerRef.current, { attributionControl: true });
-    L.tileLayer(TILE_URL, { attribution: ATTRIBUTION, subdomains: "abcd", maxZoom: 20 }).addTo(map);
+    L.tileLayer(TILE_URL, { attribution: ATTRIBUTION, maxZoom: 19 }).addTo(map);
 
-    const polyline = L.polyline(latLngs, { color: "#21c274", weight: 3 }).addTo(map);
+    const polyline = L.polyline(latLngs, { color: TRACK_COLOR, weight: 3 }).addTo(map);
     map.fitBounds(polyline.getBounds(), { padding: [24, 24] });
 
     return () => {
