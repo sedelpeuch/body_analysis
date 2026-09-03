@@ -109,6 +109,14 @@ export function WorkoutDetailPage() {
                 {cardiacDrift.data.drift_pct > 0 ? "+" : ""}
                 {Math.round(cardiacDrift.data.drift_pct * 10) / 10}%
               </p>
+              <p className="text-xs text-text-mid">
+                Écart de FC moyenne entre la 1ère et la 2e moitié de la séance, à effort comparable. Une dérive
+                positive signifie que le cœur travaille plus pour le même effort au fil de la séance (fatigue,
+                chaleur, déshydratation).{" "}
+                {cardiacDrift.data.drift_pct > 5
+                  ? "Au-delà de +5 %, c'est un signal de fatigue ou de sous-récupération à surveiller."
+                  : "Sous +5 %, c'est le signe d'un bon état de forme et d'un pacing maîtrisé."}
+              </p>
             </div>
           )}
         </DomainCard>

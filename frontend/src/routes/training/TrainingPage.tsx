@@ -7,6 +7,7 @@ import {
   useWorkouts,
 } from "../../api/workouts/hooks";
 import { useTrainingLoad, useRestingHr } from "../../api/analytics/hooks";
+import { usePhases } from "../../api/phases/hooks";
 import { DomainCard } from "../../components/domain-card/DomainCard";
 import { CalendarHeatmap } from "../../components/charts/CalendarHeatmap";
 import { StatTile } from "../../components/charts/StatTile";
@@ -32,15 +33,25 @@ const RECENT_WINDOW_DAYS = 180;
 
 export function TrainingPage() {
   const [sport, setSport] = useState<string | undefined>(undefined);
+  const [phaseId, setPhaseId] = useState<number | undefined>(undefined);
+
+  const phases = usePhases();
+  const selectedPhase = phases.data?.find((p) => p.id === phaseId);
+  const phaseRange = selectedPhase ? { from: selectedPhase.starts_on, to: selectedPhase.ends_on } : {};
+  // Charge et FC de repos n'ont de sens que sur une fenêtre récente, et sans
+  // plage /analytics/training-load prend ~30s sur l'historique complet —
+  // contrairement aux stats et à la liste, jamais bridées par défaut.
   const recentRange = { from: isoDaysAgo(RECENT_WINDOW_DAYS), to: isoDaysAgo(0) };
+  const loadRange = selectedPhase ? phaseRange : recentRange;
+  const rangeLabel = selectedPhase ? selectedPhase.name : "180 derniers jours";
 
   const sports = useSports();
   const calendar = useWorkoutCalendar({ year: CURRENT_YEAR });
-  const stats = useWorkoutStats({ sport });
+  const stats = useWorkoutStats({ ...phaseRange, sport });
   const records = useWorkoutRecords(sport);
-  const workouts = useWorkouts({ sport, limit: 20 });
-  const trainingLoad = useTrainingLoad(recentRange);
-  const restingHr = useRestingHr(recentRange);
+  const workouts = useWorkouts({ ...phaseRange, sport, limit: 20 });
+  const trainingLoad = useTrainingLoad(loadRange);
+  const restingHr = useRestingHr(loadRange);
 
   return (
     <div className="flex flex-col gap-6">
@@ -49,19 +60,34 @@ export function TrainingPage() {
           <h1 className="text-2xl">Entraînement</h1>
           <p className="text-text-mid">Calendrier, volume par sport, records, charge et FC de repos.</p>
         </div>
-        <Select value={sport ?? "all"} onValueChange={(v) => setSport(v === "all" ? undefined : v)}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Tous les sports" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tous les sports</SelectItem>
-            {sports.data?.map((s) => (
-              <SelectItem key={s.sport} value={s.sport}>
-                {s.sport} ({s.workout_count})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Select value={phaseId?.toString() ?? "recent"} onValueChange={(v) => setPhaseId(v === "recent" ? undefined : Number(v))}>
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder="180 derniers jours" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="recent">180 derniers jours</SelectItem>
+              {phases.data?.map((p) => (
+                <SelectItem key={p.id} value={p.id.toString()}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={sport ?? "all"} onValueChange={(v) => setSport(v === "all" ? undefined : v)}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Tous les sports" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les sports</SelectItem>
+              {sports.data?.map((s) => (
+                <SelectItem key={s.sport} value={s.sport}>
+                  {s.sport} ({s.workout_count})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <DomainCard variant="training" title={`Calendrier ${CURRENT_YEAR}`}>
@@ -106,7 +132,7 @@ export function TrainingPage() {
         )}
       </DomainCard>
 
-      <DomainCard variant="training" title="Charge aiguë contre chronique — 180 derniers jours">
+      <DomainCard variant="training" title={`Charge aiguë contre chronique — ${rangeLabel}`}>
         <LineSeriesCard
           data={(trainingLoad.data ?? []).map((d) => ({ ...d, at: d.day }))}
           xKey="at"
@@ -153,7 +179,7 @@ export function TrainingPage() {
         </ul>
       </DomainCard>
 
-      <DomainCard variant="training" title="FC de repos — 180 derniers jours">
+      <DomainCard variant="training" title={`FC de repos — ${rangeLabel}`}>
         <LineSeriesCard
           data={(restingHr.data ?? []).map((d) => ({ ...d, at: d.day }))}
           xKey="at"
