@@ -122,7 +122,35 @@ export function TrainingPage() {
           data={(trainingLoad.data ?? []).map((d) => ({ ...d, at: d.day }))}
           xKey="at"
           series={[{ key: "ratio", label: "ACWR" }]}
+          yReferenceBands={[
+            { id: "sous-entrainement", y1: 0, y2: 0.8, color: "var(--color-accent-blue)" },
+            { id: "optimale", y1: 0.8, y2: 1.3, color: "var(--color-accent-green)" },
+            { id: "sur-risque", y1: 1.5, color: "var(--color-danger)" },
+          ]}
         />
+        <ul className="mt-2 flex flex-col gap-1 text-xs text-text-mid">
+          <li className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-accent-blue" />
+            <span>
+              <span className="text-text-high">Sous-entraînement (&lt; 0,8)</span> — charge récente trop faible : la
+              condition physique baisse et le risque de blessure augmente au retour à des efforts intenses.
+            </span>
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-accent-green" />
+            <span>
+              <span className="text-text-high">Zone optimale (0,8 à 1,3)</span> — sollicitation cohérente avec la
+              capacité du corps : progression idéale, risque de blessure faible.
+            </span>
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-destructive" />
+            <span>
+              <span className="text-text-high">Sur-risque (&gt; 1,5)</span> — augmentation trop rapide de la charge
+              (pic) : risque de blessure ou de surentraînement en nette hausse.
+            </span>
+          </li>
+        </ul>
       </DomainCard>
 
       <DomainCard variant="training" title="FC de repos — 180 derniers jours">

@@ -13,15 +13,31 @@ export interface SeriesSpec {
   color?: string;
 }
 
+export interface YReferenceBand {
+  id: string;
+  // `y2` omis = bande ouverte jusqu'au sommet de l'axe.
+  y1: number;
+  y2?: number;
+  color: string;
+}
+
 export interface LineSeriesCardProps {
   data: object[];
   series: SeriesSpec[];
   xKey: string;
   height?: number;
   phaseBands?: PhaseBand[];
+  yReferenceBands?: YReferenceBand[];
 }
 
-export function LineSeriesCard({ data, series, xKey, height = 240, phaseBands = [] }: LineSeriesCardProps) {
+export function LineSeriesCard({
+  data,
+  series,
+  xKey,
+  height = 240,
+  phaseBands = [],
+  yReferenceBands = [],
+}: LineSeriesCardProps) {
   return (
     <div style={{ width: "100%", height }}>
       <ResponsiveContainer>
@@ -53,6 +69,17 @@ export function LineSeriesCard({ data, series, xKey, height = 240, phaseBands = 
             }}
             labelStyle={{ color: "var(--color-text-mid)" }}
           />
+          {yReferenceBands.map((band) => (
+            <ReferenceArea
+              key={band.id}
+              y1={band.y1}
+              y2={band.y2}
+              fill={band.color}
+              fillOpacity={0.12}
+              stroke="none"
+              ifOverflow="visible"
+            />
+          ))}
           {phaseBands.map((band) => (
             <ReferenceArea
               key={band.phaseId}
