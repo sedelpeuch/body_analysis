@@ -47,3 +47,11 @@ class NutritionBreakdownOut(BaseModel):
 
     by_meal_type: list[MealTypeShareOut]
     top_foods: list[TopFoodOut]
+
+
+class HourlyBucketOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    hour: int
+    entry_count: int
+    total_calories: float | None

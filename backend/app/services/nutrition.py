@@ -9,7 +9,13 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analytics.labels import meal_type_label, unit_label
-from app.analytics.nutrition import NutritionEntryInput, TopFood, compute_top_foods
+from app.analytics.nutrition import (
+    HourlyBucket,
+    NutritionEntryInput,
+    TopFood,
+    compute_eating_window,
+    compute_top_foods,
+)
 from app.api.deps import DateRange
 from app.models import NutritionEntry
 
@@ -146,3 +152,29 @@ async def get_breakdown(
     top_foods = compute_top_foods(entries, limit=10)
 
     return NutritionBreakdown(by_meal_type=by_meal_type, top_foods=top_foods)
+
+
+async def _entry_inputs(
+    session: AsyncSession, date_range: DateRange
+) -> list[NutritionEntryInput]:
+    rows = (await session.execute(_entries_query(date_range))).scalars().all()
+    return [
+        NutritionEntryInput(
+            consumed_at=r.consumed_at, food_name=r.food_name, calories=r.calories
+        )
+        for r in rows
+    ]
+
+
+async def get_eating_window(
+    session: AsyncSession, date_range: DateRange
+) -> list[HourlyBucket]:
+    entries = await _entry_inputs(session, date_range)
+    return compute_eating_window(entries)
+
+
+async def get_top_foods(
+    session: AsyncSession, date_range: DateRange, limit: int
+) -> list[TopFood]:
+    entries = await _entry_inputs(session, date_range)
+    return compute_top_foods(entries, limit=limit)
