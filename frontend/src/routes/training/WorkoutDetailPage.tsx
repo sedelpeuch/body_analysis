@@ -5,6 +5,7 @@ import {
   useWorkoutTrack,
   useWorkoutSplits,
   useWorkoutHrZones,
+  useWorkoutCardiacDrift,
 } from "../../api/workouts/hooks";
 import { DomainCard } from "../../components/domain-card/DomainCard";
 import { StatTile } from "../../components/charts/StatTile";
@@ -24,6 +25,7 @@ export function WorkoutDetailPage() {
   const track = useWorkoutTrack(workoutId);
   const splits = useWorkoutSplits(workoutId);
   const hrZones = useWorkoutHrZones(workoutId);
+  const cardiacDrift = useWorkoutCardiacDrift(workoutId);
 
   if (workout.isLoading) return <p className="text-sm text-text-mid">Chargement…</p>;
   if (!workout.data) return <p className="text-sm text-text-mid">Séance introuvable.</p>;
@@ -89,7 +91,28 @@ export function WorkoutDetailPage() {
         </DomainCard>
       )}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <DomainCard variant="training" title="Dérive cardiaque">
+          {cardiacDrift.isLoading ? (
+            <p className="text-sm text-text-mid">Chargement…</p>
+          ) : cardiacDrift.data?.drift_pct === null || cardiacDrift.data?.drift_pct === undefined ? (
+            <p className="text-sm text-text-mid">Pas assez d'échantillons FC.</p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <p className="tabular text-sm text-text-mid">
+                1ère moitié : <span className="text-text-high">{Math.round(cardiacDrift.data.first_half_mean_hr!)} bpm</span>
+              </p>
+              <p className="tabular text-sm text-text-mid">
+                2e moitié : <span className="text-text-high">{Math.round(cardiacDrift.data.second_half_mean_hr!)} bpm</span>
+              </p>
+              <p className="tabular text-lg text-text-high">
+                {cardiacDrift.data.drift_pct > 0 ? "+" : ""}
+                {Math.round(cardiacDrift.data.drift_pct * 10) / 10}%
+              </p>
+            </div>
+          )}
+        </DomainCard>
+
         <DomainCard variant="training" title="Temps par zone cardiaque">
           {hrZones.isError ? (
             <p className="text-sm text-text-mid">FC max indisponible pour cette séance.</p>

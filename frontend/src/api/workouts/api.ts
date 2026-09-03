@@ -11,6 +11,7 @@ import type {
   TrackOut,
   SplitOut,
   HrZoneOut,
+  CardiacDriftOut,
   SwolfByStrokeOut,
   StrengthOut,
   CursorPage,
@@ -55,6 +56,10 @@ export function fetchWorkoutSplits(id: number, unit?: string) {
 
 export function fetchWorkoutHrZones(id: number) {
   return request<HrZoneOut[]>(`/workouts/${id}/hr-zones`);
+}
+
+export function fetchWorkoutCardiacDrift(id: number) {
+  return request<CardiacDriftOut>(`/workouts/${id}/cardiac-drift`);
 }
 
 export function fetchWorkoutSwim(id: number) {

@@ -47,6 +47,13 @@ export function useWorkoutHrZones(id: number) {
   return useQuery({ queryKey: ["workouts", id, "hr-zones"] as const, queryFn: () => workoutsApi.fetchWorkoutHrZones(id) });
 }
 
+export function useWorkoutCardiacDrift(id: number) {
+  return useQuery({
+    queryKey: ["workouts", id, "cardiac-drift"] as const,
+    queryFn: () => workoutsApi.fetchWorkoutCardiacDrift(id),
+  });
+}
+
 export function useWorkoutSwim(id: number) {
   return useQuery({ queryKey: ["workouts", id, "swim"] as const, queryFn: () => workoutsApi.fetchWorkoutSwim(id) });
 }

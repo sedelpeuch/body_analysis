@@ -313,6 +313,12 @@ export interface HrZoneOut {
   seconds: number;
 }
 
+export interface CardiacDriftOut {
+  first_half_mean_hr: number | null;
+  second_half_mean_hr: number | null;
+  drift_pct: number | null;
+}
+
 export interface SwolfByStrokeOut {
   stroke_type: string;
   length_count: number;

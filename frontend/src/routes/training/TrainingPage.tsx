@@ -117,6 +117,14 @@ export function TrainingPage() {
         />
       </DomainCard>
 
+      <DomainCard variant="training" title="ACWR — charge aiguë / chronique">
+        <LineSeriesCard
+          data={(trainingLoad.data ?? []).map((d) => ({ ...d, at: d.day }))}
+          xKey="at"
+          series={[{ key: "ratio", label: "ACWR" }]}
+        />
+      </DomainCard>
+
       <DomainCard variant="training" title="FC de repos — 180 derniers jours">
         <LineSeriesCard
           data={(restingHr.data ?? []).map((d) => ({ ...d, at: d.day }))}
