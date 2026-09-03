@@ -95,6 +95,7 @@ export function TodayPage() {
                   current={m.objective!.current}
                   target={m.objective!.target}
                   direction={m.objective!.direction}
+                  achieved={m.objective!.achieved}
                   changeAbs={m.change}
                   monthlyRateAbs={m.monthly_rate}
                 />

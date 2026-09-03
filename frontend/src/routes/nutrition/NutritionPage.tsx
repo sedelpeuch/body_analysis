@@ -111,6 +111,7 @@ export function NutritionPage() {
                   <th className="pb-2 font-normal">Date</th>
                   <th className="pb-2 font-normal">Aliment</th>
                   <th className="pb-2 font-normal">Repas</th>
+                  <th className="pb-2 font-normal">Quantité</th>
                   <th className="pb-2 font-normal">Calories</th>
                 </tr>
               </thead>
@@ -120,6 +121,7 @@ export function NutritionPage() {
                     <td className="py-2 text-text-mid">{new Date(e.at).toLocaleString("fr-FR")}</td>
                     <td className="py-2 text-text-high">{e.food_name}</td>
                     <td className="py-2 text-text-mid">{e.meal_type_label}</td>
+                    <td className="py-2 text-text-mid">{e.amount !== null ? `${e.amount} ${e.unit_label}` : <EmptyValue />}</td>
                     <td className="py-2">{e.calories !== null ? Math.round(e.calories) : <EmptyValue />}</td>
                   </tr>
                 ))}

@@ -57,6 +57,21 @@ export function WorkoutDetailPage() {
         </DomainCard>
       </div>
 
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <DomainCard variant="training" title="FC min">
+          <StatTile label="FC min" value={w.min_heart_rate !== null ? Math.round(w.min_heart_rate) : null} unit="bpm" />
+        </DomainCard>
+        <DomainCard variant="training" title="FC de repos">
+          <StatTile label="FC de repos" value={w.resting_hr} unit="bpm" />
+        </DomainCard>
+        <DomainCard variant="training" title="Dénivelé positif">
+          <StatTile label="D+" value={w.altitude_gain_m !== null ? Math.round(w.altitude_gain_m) : null} unit="m" />
+        </DomainCard>
+        <DomainCard variant="training" title="Dénivelé négatif">
+          <StatTile label="D-" value={w.altitude_loss_m !== null ? Math.round(w.altitude_loss_m) : null} unit="m" />
+        </DomainCard>
+      </div>
+
       {w.has_samples && (
         // Un graphique par mesure : bpm, m/s et mètres n'ont rien de
         // comparable sur un même axe, ça écraserait les deux plus petites.

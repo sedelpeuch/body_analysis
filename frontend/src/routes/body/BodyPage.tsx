@@ -1,12 +1,16 @@
 import { useMemo, useState } from "react";
-import { useComposition, useTimeseries } from "../../api/body/hooks";
+import { useBodyCalendar, useBodySummary, useComposition, useTimeseries } from "../../api/body/hooks";
 import { mergeTimeseries } from "../../api/body/mapping";
 import { usePhases } from "../../api/phases/hooks";
 import { DomainCard } from "../../components/domain-card/DomainCard";
 import { LineSeriesCard } from "../../components/charts/LineSeriesCard";
+import { CalendarHeatmap } from "../../components/charts/CalendarHeatmap";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { phaseBands } from "../../lib/phase-bands";
 import { METRIC_COLOR } from "../../lib/metric-config";
+import { formatDelta } from "../../lib/format";
+
+const CURRENT_YEAR = new Date().getFullYear();
 
 export function BodyPage() {
   const phases = usePhases();
@@ -16,6 +20,8 @@ export function BodyPage() {
 
   const timeseries = useTimeseries({ ...range, metrics: "weight,body_fat,muscle", resolution: "daily" });
   const composition = useComposition(range);
+  const summary = useBodySummary();
+  const calendar = useBodyCalendar({ metric: "weight", year: CURRENT_YEAR });
 
   const percentSeries = useMemo(
     () => (timeseries.data ? mergeTimeseries(timeseries.data) : []),
@@ -58,6 +64,28 @@ export function BodyPage() {
           </SelectContent>
         </Select>
       </div>
+
+      <DomainCard variant="body" title="Variations récentes du poids">
+        {summary.isLoading ? (
+          <p className="text-sm text-text-mid">Chargement…</p>
+        ) : (
+          <div className="flex gap-6">
+            {summary.data?.weight_deltas.map((d) => (
+              <p key={d.window_days} className="tabular text-sm text-text-high">
+                {d.window_days} j : {formatDelta(d.change, "kg")}
+              </p>
+            ))}
+          </div>
+        )}
+      </DomainCard>
+
+      <DomainCard variant="body" title={`Calendrier du poids ${CURRENT_YEAR}`}>
+        {calendar.isLoading ? (
+          <p className="text-sm text-text-mid">Chargement…</p>
+        ) : (
+          <CalendarHeatmap cells={calendar.data ?? []} year={CURRENT_YEAR} />
+        )}
+      </DomainCard>
 
       {/* Un graphique par métrique plutôt qu'un axe partagé : des échelles
           aussi différentes (kg contre %) lissent visuellement les séries

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   useSports,
   useWorkoutCalendar,
@@ -125,7 +126,10 @@ export function TrainingPage() {
             {records.data?.map((r) => (
               <li key={r.label} className="tabular flex justify-between text-sm">
                 <span className="text-text-mid">{r.label}</span>
-                <span className="text-text-high">{r.value}</span>
+                <Link to={`/entrainement/${r.workout_id}`} className="flex gap-3 text-text-high hover:underline">
+                  <span>{r.value}</span>
+                  <span className="text-text-mid">{new Date(r.at).toLocaleDateString("fr-FR")}</span>
+                </Link>
               </li>
             ))}
           </ul>

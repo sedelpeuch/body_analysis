@@ -109,6 +109,7 @@ export function EnergyPage() {
           series={[
             { key: "intake_kcal", label: "Apport (kcal)" },
             { key: "expenditure_kcal", label: "Dépense (kcal)" },
+            { key: "balance_kcal", label: "Solde (kcal)" },
           ]}
         />
       </DomainCard>

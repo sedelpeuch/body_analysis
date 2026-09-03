@@ -16,6 +16,10 @@ export interface ObjectiveSummaryProps {
   current: number | null;
   target: number;
   direction: Direction;
+  // Fourni par l'API (analytics/objectives.py) plutôt que redérivé ici :
+  // c'est la même règle qui sert au bilan transverse de /phases, pas une
+  // approximation locale qui pourrait diverger sur un cas limite.
+  achieved: boolean | null;
   changeAbs: number | null;
   monthlyRateAbs: number | null;
 }
@@ -33,11 +37,11 @@ export function ObjectiveSummary({
   current,
   target,
   direction,
+  achieved,
   changeAbs,
   monthlyRateAbs,
 }: ObjectiveSummaryProps) {
   const ratio = objectiveProgress(direction, start, current, target);
-  const achieved = current !== null && (direction === "down" ? current <= target : current >= target);
 
   return (
     <div className="flex flex-col gap-2">

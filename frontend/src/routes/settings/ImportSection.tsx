@@ -60,6 +60,7 @@ export function ImportSection() {
                 <span>{run.source_name}</span>
                 <span>{run.status}</span>
                 <span>{new Date(run.started_at).toLocaleString("fr-FR")}</span>
+                <span>{run.finished_at ? new Date(run.finished_at).toLocaleString("fr-FR") : "—"}</span>
               </li>
             ))}
           </ul>
