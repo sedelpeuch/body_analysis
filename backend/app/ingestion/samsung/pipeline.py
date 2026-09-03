@@ -393,7 +393,6 @@ async def run_ingestion(
         run.status = IngestionStatus.SUCCESS
     except Exception as error:
         await session.rollback()
-        run = await session.get(IngestionRun, run.id)
         run.status = IngestionStatus.FAILED
         run.error = f"{type(error).__name__}: {error}"
         raise
