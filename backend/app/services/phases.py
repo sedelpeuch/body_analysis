@@ -188,3 +188,39 @@ async def delete_phase(session: AsyncSession, phase_id: int) -> None:
     phase = await get_phase(session, phase_id)
     await session.delete(phase)
     await session.commit()
+
+
+@dataclass(frozen=True, slots=True)
+class MetricSuccessRate:
+    metric: Metric
+    achieved_count: int
+    total_count: int
+    success_rate: float
+
+
+async def get_transverse_report(
+    session: AsyncSession, *, today: date
+) -> list[MetricSuccessRate]:
+    """Taux de réussite par métrique, toutes phases ayant un objectif
+    confondues — l'équivalent de la page Objectifs (spec 6, /phases/report)."""
+    phases = await list_phases(session)
+    achieved_by_metric: dict[Metric, list[bool]] = {}
+    for phase in phases:
+        report = await get_phase_report(session, phase.id, today=today)
+        for metric_report in report.metrics:
+            objective = metric_report.objective
+            if objective is None or objective.achieved is None:
+                continue
+            achieved_by_metric.setdefault(objective.metric, []).append(
+                objective.achieved,
+            )
+
+    return [
+        MetricSuccessRate(
+            metric=metric,
+            achieved_count=sum(flags),
+            total_count=len(flags),
+            success_rate=sum(flags) / len(flags),
+        )
+        for metric, flags in achieved_by_metric.items()
+    ]

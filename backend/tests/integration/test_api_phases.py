@@ -1,6 +1,6 @@
 """Tests d'intégration de l'API phases."""
 
-from datetime import date
+from datetime import UTC, date, datetime
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.main import app
-from app.models import Phase, PhaseKind
+from app.models import BodyMeasurement, Phase, PhaseKind
 
 pytestmark = pytest.mark.asyncio
 
@@ -190,3 +190,45 @@ async def test_delete_unknown_phase_is_404_problem_json(session: AsyncSession) -
 
     assert response.status_code == 404
     assert response.headers["content-type"].startswith("application/problem+json")
+
+
+async def test_get_transverse_report_ranks_success_rate_per_metric(
+    session: AsyncSession,
+) -> None:
+    achieved = Phase(
+        name="Sèche réussie",
+        kind=PhaseKind.CUT,
+        starts_on=date(2026, 1, 1),
+        ends_on=date(2026, 2, 1),
+        weight_target_kg=1.0,
+    )
+    session.add(achieved)
+    session.add(
+        BodyMeasurement(
+            source_uuid="body-transverse-report-1",
+            measured_at=datetime(2026, 1, 1, tzinfo=UTC),
+            weight_kg=90.0,
+        ),
+    )
+    session.add(
+        BodyMeasurement(
+            source_uuid="body-transverse-report-2",
+            measured_at=datetime(2026, 2, 1, tzinfo=UTC),
+            weight_kg=1.0,
+        ),
+    )
+    await session.commit()
+
+    app.dependency_overrides[get_session] = lambda: session
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                "/api/phases/report", params={"today": "2026-02-01"}
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    rates = {r["metric"]: r for r in response.json()}
+    assert rates["weight"]["achieved_count"] >= 1

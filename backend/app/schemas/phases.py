@@ -92,3 +92,12 @@ class PhaseReportOut(BaseModel):
     metrics: list[PhaseMetricReportOut]
     average_calories_kcal: float | None
     recomposition: RecompositionOut
+
+
+class MetricSuccessRateOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    metric: Metric
+    achieved_count: int
+    total_count: int
+    success_rate: float

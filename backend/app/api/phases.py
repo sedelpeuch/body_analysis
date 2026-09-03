@@ -9,7 +9,13 @@ from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.schemas.phases import PhaseCreate, PhaseOut, PhaseReportOut, PhaseUpdate
+from app.schemas.phases import (
+    MetricSuccessRateOut,
+    PhaseCreate,
+    PhaseOut,
+    PhaseReportOut,
+    PhaseUpdate,
+)
 from app.services import phases as phases_service
 
 router = APIRouter(prefix="/phases", tags=["phases"])
@@ -36,6 +42,15 @@ async def get_current_phase(
 ) -> PhaseOut | None:
     phase = await phases_service.get_current_phase(session, today)
     return PhaseOut.model_validate(phase) if phase is not None else None
+
+
+@router.get("/report", response_model=list[MetricSuccessRateOut])
+async def get_transverse_report(
+    session: AsyncSession = Depends(get_session),
+    today: date = Query(default_factory=date.today),
+) -> list[MetricSuccessRateOut]:
+    rates = await phases_service.get_transverse_report(session, today=today)
+    return [MetricSuccessRateOut.model_validate(r) for r in rates]
 
 
 @router.get("/{phase_id}", response_model=PhaseOut)
