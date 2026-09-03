@@ -8,7 +8,11 @@ export function useMeasurements(params: DateRangeParams) {
 }
 
 export function useTimeseries(params: DateRangeParams & { metrics: string; resolution?: "raw" | "daily" }) {
-  return useQuery({ queryKey: ["body", "timeseries", params] as const, queryFn: () => bodyApi.fetchTimeseries(params) });
+  return useQuery({
+    queryKey: ["body", "timeseries", params] as const,
+    queryFn: () => bodyApi.fetchTimeseries(params),
+    enabled: params.from !== undefined && params.to !== undefined,
+  });
 }
 
 export function useBodySummary(params: { today?: string } = {}) {
