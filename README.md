@@ -1,6 +1,6 @@
 # Body Analysis App
 
-Application Streamlit pour le suivi et l'analyse corporelle, phases, photos et import de données Samsung Health.
+Application de suivi et d'analyse corporelle : phases, photos et import de données Samsung Health.
 
 ## Fonctionnalités principales
 
@@ -9,106 +9,48 @@ Application Streamlit pour le suivi et l'analyse corporelle, phases, photos et i
 - **Photos** : Timeline mensuelle par tag (face, profil, dos, bras, épaule), confidentialité, auto-rotation, affichage uniforme
 - **Import** : Upload CSV Samsung Health (poids, alimentation), upload photos, organisation automatique, phases.json
 
+## Architecture
+
+- **backend/** : API FastAPI (Python), persistance PostgreSQL, stockage des photos sur MinIO (S3)
+- **frontend/** : SPA React + TypeScript + Vite, servie en production par nginx (reverse proxy `/api/` vers le backend)
+
 ## Installation locale
 
 ### Prérequis
 
-- Python 3.11
-- [Poetry](https://python-poetry.org/)
+- Docker et Docker Compose
 
-### Installation
-
-```bash
-poetry install
-```
-
-### Lancement
+### Lancement (dev)
 
 ```bash
-streamlit run body_analysis/dashboard.py
+cp backend/.env.example backend/.env   # renseigner les valeurs
+cp frontend/.env.example frontend/.env
+docker compose up -d
 ```
 
-## Déploiement Docker
+- Frontend (Vite, hot reload) : http://localhost:5173
+- API : http://localhost:8000
+- Console MinIO : http://localhost:9001
 
-### Build et lancement local
+### Image de production du frontend
 
 ```bash
-# Build l'image
-docker-compose build
-
-# Lancer le service
-docker-compose up -d
-
-# Accès : http://localhost:8501
+docker compose --profile prod up -d web-prod
 ```
 
-### Déploiement sur Docker Swarm
+## Tests
 
 ```bash
-# Initialiser le swarm (si besoin)
-docker swarm init
-
-# Déployer le stack
-docker stack deploy -c docker-compose.yml body-analysis
-
-# Accès : http://<swarm-manager-ip>:8501
+cd backend && uv sync --frozen && uv run pytest tests/unit
 ```
 
-### Mise à jour du service
+## CI/CD
 
-```bash
-# Rebuild l'image
-docker-compose build
+Le workflow `.github/workflows/docker_build.yml` build et publie sur GHCR, à chaque push sur `master` :
 
-# Mettre à jour le service sur Swarm
-docker service update --image body-analysis:latest body-analysis_body-analysis
-```
-
-## Configuration
-
-- **Données persistantes** : Le volume `./data` contient les CSV, photos et phases.json
-- **Variables d'environnement** : `TZ` (Europe/Paris par défaut)
-- **Réseau** : Overlay pour Swarm
-- **Ressources** : Limite à 1 CPU / 1GB RAM
-- **Health check** : Vérification automatique de Streamlit
-
-## Structure des dossiers
-
-```
-body_analysis/
-├── body_analysis/
-│   ├── dashboard.py
-│   ├── pages/
-│   └── ...
-├── data/
-│   ├── com.samsung.health.weight.YYYYMMDD.csv
-│   ├── com.samsung.health.food_intake.YYYYMMDD.csv
-│   ├── phases.json
-│   └── photos/
-│       └── YYYY-MM/
-│           └── tag.jpg
-├── Dockerfile
-├── docker-compose.yml
-├── .dockerignore
-├── README.md
-```
-
-## Utilisation
-
-1. **Importer les données** : Utiliser la page Import pour uploader les CSV et photos
-2. **Configurer les phases** : Éditer `data/phases.json` pour définir les périodes
-3. **Analyser** : Naviguer entre Dashboard, Phases et Photos pour visualiser l'évolution
-
-## Dépannage
-
-- **Logs Docker Compose** : `docker-compose logs -f`
-- **Logs Swarm** : `docker service logs -f body-analysis_body-analysis`
-- **Permissions data/** : `chmod -R 755 data/`
+- `ghcr.io/sedelpeuch/body-analysis-api` (depuis `backend/Dockerfile`)
+- `ghcr.io/sedelpeuch/body-analysis-web` (depuis `frontend/Dockerfile`)
 
 ## Auteurs
 
 - Sébastien Delpeuch <sebastien@delpeuch.net>
-
----
-
-Pour toute question ou amélioration, ouvrez une issue sur le dépôt GitHub.
