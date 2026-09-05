@@ -1,0 +1,5 @@
+{
+  "heart_rate": {"is_valid": true, "type": 1, "max_hr_custom": 200, "max_hr_auto": 188, "at": 135, "ant": 166, "rhr": 60},
+  "heart_rate_zone": {"is_valid": false},
+  "sampling_rate": 2000
+}

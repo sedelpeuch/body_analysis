@@ -1,0 +1,17 @@
+[
+  {"name": "Phase libre", "type": "free", "start": "2023-01-01", "end": "2023-12-31"},
+  {
+    "name": "Première sèche",
+    "type": "cut",
+    "start": "2024-01-01",
+    "end": "2025-03-31",
+    "objectives": {
+      "weight_target": 70,
+      "body_fat_target": 20.0,
+      "muscle_target": 30.0,
+      "calories_target": 1900
+    }
+  },
+  {"name": "Cassée", "type": "cut", "start": "pas une date", "end": "2025-04-30"},
+  {"name": "Type inconnu", "type": "wat", "start": "2025-05-01", "end": "2025-05-31"}
+]

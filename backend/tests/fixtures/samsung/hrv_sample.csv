@@ -1,0 +1,5 @@
+com.samsung.health.hrv,7006003,1
+start_time,end_time,binning_data,time_offset,datauuid
+2024-11-20 22:00:00.000,2024-11-20 23:00:00.000,aaaaaaaa-0000-0000-0000-000000000001.binning_data.json,UTC+0100,a057c257-f289-4bb6-8672-5dc197c624b7
+2024-11-21 22:00:00.000,2024-11-21 23:00:00.000,fichier-absent.binning_data.json,UTC+0100,b057c257-f289-4bb6-8672-5dc197c624b8
+,,,,,

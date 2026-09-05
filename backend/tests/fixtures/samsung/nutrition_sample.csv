@@ -1,0 +1,4 @@
+com.samsung.health.nutrition,7006003,6
+protein,total_fat,saturated_fat,trans_fat,monosaturated_fat,polysaturated_fat,carbohydrate,dietary_fiber,sugar,added_sugar,cholesterol,sodium,potassium,calcium,iron,vitamin_a,vitamin_c,vitamin_d,calorie,meal_type,title,start_time,time_offset,datauuid
+24.4,12.3,2.2,0.0,2.8,0.3,46.2,5.5,14.7,0.0,56.0,1975.0,39.0,23.8,,8.7,0.0,0.0,651.0,100002,Déjeuner,2024-08-14 15:35:32.249,UTC+0200,cc453be7-2248-423a-a4a9-3b7e2380a4d7
+,,,,,,,,,,,,,,,,,,,100005,,2024-08-14 20:10:00.000,UTC+0200,
