@@ -13,7 +13,7 @@ const NAV_ENTRIES = [
 
 export function Sidebar() {
   return (
-    <nav className="flex h-full w-56 shrink-0 flex-col gap-1 border-r border-line bg-surface p-3">
+    <nav className="hidden h-full w-56 shrink-0 flex-col gap-1 border-r border-line bg-surface p-3 md:flex">
       <div className="mb-4 px-3 py-2 font-display text-lg uppercase tracking-wide text-text-high">
         Body Analysis
       </div>

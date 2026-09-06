@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { usePhotos, photoImageUrl } from "../../api/photos/hooks";
 import { DomainCard } from "../../components/domain-card/DomainCard";
 import { PhotoImage } from "../../components/photo/PhotoImage";
+import { PhotoLightbox, type LightboxPhoto } from "../../components/photo/PhotoLightbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { PhotoComparator } from "./PhotoComparator";
 
@@ -19,6 +20,7 @@ function readConfidentialPreference(): boolean {
 export function PhotosPage() {
   const [tag, setTag] = useState<(typeof TAGS)[number]>("face");
   const [confidential, setConfidential] = useState(readConfidentialPreference);
+  const [lightboxPhoto, setLightboxPhoto] = useState<LightboxPhoto | null>(null);
   const photos = usePhotos(tag);
 
   useEffect(() => {
@@ -33,19 +35,19 @@ export function PhotosPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl">Photos</h1>
           <p className="text-text-mid">Timeline par tag, comparateur avant/après, mode confidentiel.</p>
         </div>
-        <label className="flex items-center gap-2 text-sm text-text-mid">
+        <label className="flex shrink-0 items-center gap-2 text-sm text-text-mid">
           <input type="checkbox" checked={confidential} onChange={(e) => setConfidential(e.target.checked)} />
           Mode confidentiel
         </label>
       </div>
 
       <Tabs value={tag} onValueChange={(v) => setTag(v as (typeof TAGS)[number])}>
-        <TabsList>
+        <TabsList className="w-full overflow-x-auto overflow-y-hidden sm:w-fit">
           {TAGS.map((t) => (
             <TabsTrigger key={t} value={t}>
               {t}
@@ -61,16 +63,26 @@ export function PhotosPage() {
                 ) : sorted.length === 0 ? (
                   <p className="text-sm text-text-mid">Aucune photo pour ce tag.</p>
                 ) : (
-                  <div className="grid grid-cols-4 gap-2 md:grid-cols-6">
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
                     {sorted.map((p) => (
-                      <div key={p.id} className="flex flex-col gap-1">
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() =>
+                          setLightboxPhoto({
+                            src: photoImageUrl(p.id, "medium", confidential),
+                            alt: `Photo ${p.tag} du ${p.taken_on}`,
+                          })
+                        }
+                        className="flex flex-col gap-1 text-left"
+                      >
                         <PhotoImage
                           src={photoImageUrl(p.id, "thumb", confidential)}
                           alt={`Photo ${p.tag} du ${p.taken_on}`}
-                          className="aspect-square w-full rounded-card object-cover"
+                          className="aspect-square w-full rounded-card object-cover active:opacity-75"
                         />
                         <span className="tabular text-center text-xs text-text-mid">{p.taken_on}</span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -83,6 +95,8 @@ export function PhotosPage() {
           </TabsContent>
         ))}
       </Tabs>
+
+      <PhotoLightbox photo={lightboxPhoto} onClose={() => setLightboxPhoto(null)} />
     </div>
   );
 }
