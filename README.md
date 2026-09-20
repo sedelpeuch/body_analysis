@@ -4,10 +4,14 @@ Application de suivi et d'analyse corporelle : phases, photos et import de donn�
 
 ## Fonctionnalités principales
 
-- **Dashboard** : Vue d'ensemble, graphiques de poids, composition corporelle, calories
-- **Phases** : Analyse détaillée par phase (bulk, cut, maintien, libre), métriques mensuelles, variation, pourcentage
-- **Photos** : Timeline mensuelle par tag (face, profil, dos, bras, épaule), confidentialité, auto-rotation, affichage uniforme
-- **Import** : Upload CSV Samsung Health (poids, alimentation), upload photos, organisation automatique, phases.json
+- **Aujourd'hui** : vue d'ensemble de la phase en cours, tendance récente et comparaison photo
+- **Corps** : poids, composition corporelle, historique en calendrier
+- **Entraînement** : séances, records, charge d'entraînement (TRIMP, ratio charge aiguë/chronique), dérive cardiaque et zones de fréquence cardiaque
+- **Nutrition** : apports journaliers, répartition par macronutriment, fenêtre alimentaire
+- **Énergie** : bilan énergétique et TDEE estimé à partir du poids et des apports
+- **Phases** : analyse par phase (bulk, cut, maintien, libre), métriques et variation par rapport aux objectifs
+- **Photos** : galerie par tag (face, profil, dos, bras, épaule), mode confidentiel (floutage), auto-rotation EXIF
+- **Réglages** : import ZIP Samsung Health, gestion des photos, gestion des phases
 
 ## Architecture
 
